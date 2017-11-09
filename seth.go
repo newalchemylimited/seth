@@ -525,7 +525,6 @@ type Receipt struct {
 	Cumulative  Int      `json:"cumulativeGasUsed"`
 	Address     *Address `json:"contractAddress"` // contract created, or none if not a contract creation
 	Logs        []Log    `json:"logs"`
-	LikelyThrew bool     `json:"-"` // did this transaction probably throw? (gas used == gas limit)
 }
 
 func (c *Client) GetCode(addr *Address) ([]byte, error) {
@@ -539,21 +538,8 @@ func (c *Client) GetCode(addr *Address) ([]byte, error) {
 }
 
 // GetReceipt gets a receipt for a given transaction hash.
-// If the parent block isn't provided, it is fetched in order
-// to populate the LikelyThrew field.
-func (c *Client) GetReceipt(tx *Transaction) (*Receipt, error) {
-	buf, _ := json.Marshal(tx.Hash)
-	out := &Receipt{}
-	err := c.Do("eth_getTransactionReceipt", []json.RawMessage{buf}, out)
-	if err != nil {
-		return nil, err
-	}
-	out.LikelyThrew = (*big.Int)(&tx.Gas).Cmp((*big.Int)(&out.GasUsed)) == 0
-	return out, nil
-}
-
-func (c *Client) GetReceiptByHash(txhash *Hash) (*Receipt, error) {
-	buf, _ := json.Marshal(txhash)
+func (c *Client) GetReceipt(tx *Hash) (*Receipt, error) {
+	buf, _ := json.Marshal(tx)
 	out := &Receipt{}
 	err := c.Do("eth_getTransactionReceipt", []json.RawMessage{buf}, out)
 	if err != nil {

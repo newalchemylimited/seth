@@ -74,7 +74,7 @@ func (s *Sender) Create(code []byte) (Address, error) {
 	if err != nil {
 		return Address{}, err
 	}
-	r, err := s.GetReceiptByHash(&h)
+	r, err := s.GetReceipt(&h)
 	if err != nil {
 		return Address{}, err
 	}

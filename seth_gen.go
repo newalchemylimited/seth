@@ -1785,11 +1785,6 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 					return
 				}
 			}
-		case "LikelyThrew":
-			z.LikelyThrew, err = dc.ReadBool()
-			if err != nil {
-				return
-			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -1802,9 +1797,9 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 9
+	// map header, size 8
 	// write "Hash"
-	err = en.Append(0x89, 0xa4, 0x48, 0x61, 0x73, 0x68)
+	err = en.Append(0x88, 0xa4, 0x48, 0x61, 0x73, 0x68)
 	if err != nil {
 		return err
 	}
@@ -1888,24 +1883,15 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	}
-	// write "LikelyThrew"
-	err = en.Append(0xab, 0x4c, 0x69, 0x6b, 0x65, 0x6c, 0x79, 0x54, 0x68, 0x72, 0x65, 0x77)
-	if err != nil {
-		return err
-	}
-	err = en.WriteBool(z.LikelyThrew)
-	if err != nil {
-		return
-	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *Receipt) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 9
+	// map header, size 8
 	// string "Hash"
-	o = append(o, 0x89, 0xa4, 0x48, 0x61, 0x73, 0x68)
+	o = append(o, 0x88, 0xa4, 0x48, 0x61, 0x73, 0x68)
 	o = msgp.AppendBytes(o, (z.Hash)[:])
 	// string "Index"
 	o = append(o, 0xa5, 0x49, 0x6e, 0x64, 0x65, 0x78)
@@ -1950,9 +1936,6 @@ func (z *Receipt) MarshalMsg(b []byte) (o []byte, err error) {
 			return
 		}
 	}
-	// string "LikelyThrew"
-	o = append(o, 0xab, 0x4c, 0x69, 0x6b, 0x65, 0x6c, 0x79, 0x54, 0x68, 0x72, 0x65, 0x77)
-	o = msgp.AppendBool(o, z.LikelyThrew)
 	return
 }
 
@@ -2035,11 +2018,6 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					return
 				}
 			}
-		case "LikelyThrew":
-			z.LikelyThrew, bts, err = msgp.ReadBoolBytes(bts)
-			if err != nil {
-				return
-			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -2063,7 +2041,6 @@ func (z *Receipt) Msgsize() (s int) {
 	for za0004 := range z.Logs {
 		s += z.Logs[za0004].Msgsize()
 	}
-	s += 12 + msgp.BoolSize
 	return
 }
 
