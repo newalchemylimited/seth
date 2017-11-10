@@ -77,11 +77,11 @@ func (d *Data) String() string {
 	if d == nil {
 		return "<nil>"
 	}
-	return string(hexstring(*d))
+	return string(hexstring(*d, false))
 }
 
 func (d Data) MarshalText() ([]byte, error) {
-	return hexstring(d), nil
+	return hexstring(d, false), nil
 }
 
 func (d *Data) UnmarshalText(b []byte) error {
@@ -171,12 +171,12 @@ func (i *Int) String() string {
 	if i == nil {
 		return "<nil>"
 	}
-	return string(hexstring(i.Big().Bytes()))
+	return string(hexstring(i.Big().Bytes(), true))
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (i *Int) MarshalText() ([]byte, error) {
-	return hexstring(i.Big().Bytes()), nil
+	return hexstring(i.Big().Bytes(), true), nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -263,7 +263,7 @@ func ParseAddress(s string) (*Address, error) {
 }
 
 func (a *Address) String() string {
-	return string(hexstring(a[:]))
+	return string(hexstring(a[:], false))
 }
 
 func (a *Address) FromString(s string) error {
@@ -283,7 +283,7 @@ func (a *Address) Scan(s fmt.ScanState, x rune) error {
 }
 
 func (a Address) MarshalText() ([]byte, error) {
-	return hexstring(a[:]), nil
+	return hexstring(a[:], false), nil
 }
 
 func (a *Address) UnmarshalText(b []byte) error {
@@ -309,7 +309,7 @@ func ParseHash(s string) (*Hash, error) {
 
 // String produces the hash as a 0x-prefixed hex string
 func (h *Hash) String() string {
-	return string(hexstring(h[:]))
+	return string(hexstring(h[:], false))
 }
 
 func (h *Hash) FromString(s string) error {
@@ -317,7 +317,7 @@ func (h *Hash) FromString(s string) error {
 }
 
 func (h Hash) MarshalText() ([]byte, error) {
-	return hexstring(h[:]), nil
+	return hexstring(h[:], false), nil
 }
 
 func (h *Hash) UnmarshalText(b []byte) error {
@@ -338,29 +338,29 @@ func (h *Hash) Scan(s fmt.ScanState, verb rune) error {
 
 // Block represents and Ethereum block
 type Block struct {
-	Number          *Int              `json:"number"`     // block number, or nil if peding
+	Number          *Uint64           `json:"number"`     // block number, or nil if peding
 	Hash            *Hash             `json:"hash"`       // block hash, or nil if pending
 	Parent          Hash              `json:"parentHash"` // parent block hash
-	Nonce           Int               `json:"nonce"`
+	Nonce           Uint64            `json:"nonce"`
 	UncleHash       Hash              `json:"sha3Uncles"`       // hash of uncles in block
 	Bloom           Data              `json:"logsBloom"`        // bloom filter of logs, or nil if pending
 	TxRoot          Hash              `json:"transactionsRoot"` // root of transaction trie of block
 	StateRoot       Hash              `json:"stateRoot"`        // root of final state trie of block
 	ReceiptsRoot    Hash              `json:"receiptsRoot"`     // root of receipts trie of block
 	Miner           Address           `json:"miner"`
-	GasLimit        Int               `json:"gasLimit"`
-	GasUsed         Int               `json:"gasUsed"`
+	GasLimit        Uint64            `json:"gasLimit"`
+	GasUsed         Uint64            `json:"gasUsed"`
 	Transactions    []json.RawMessage `json:"transactions"` // transactions; either hex strings of hashes, or actual tx bodies
 	Uncles          []Hash            `json:"uncles"`       // array of uncle hashes
 	Difficulty      *Int              `json:"difficulty"`
 	TotalDifficulty *Int              `json:"totalDifficulty"`
-	Timestamp       Int               `json:"timestamp"`
+	Timestamp       Uint64            `json:"timestamp"`
 	Extra           Data              `json:"extraData"`
 }
 
 // Time turns the block timestamp into a time.Time
 func (b *Block) Time() time.Time {
-	return time.Unix((*big.Int)(&b.Timestamp).Int64(), 0)
+	return time.Unix(int64(b.Timestamp), 0)
 }
 
 // Transactions returns the list of block transactions, given
@@ -380,15 +380,15 @@ func (b *Block) ParseTransactions() ([]Transaction, error) {
 // Transaction represents an ethereum transaction
 type Transaction struct {
 	Hash        Hash     `json:"hash"`             // tx hash
-	Nonce       Data     `json:"nonce"`            // sender nonce
+	Nonce       Uint64   `json:"nonce"`            // sender nonce
 	Block       Hash     `json:"blockHash"`        // hash of parent block
-	BlockNumber Int      `json:"blockNumber"`      //
+	BlockNumber Uint64   `json:"blockNumber"`      //
 	To          *Address `json:"to"`               // receiver, or nil for contract creation
-	TxIndex     *Int     `json:"transactionIndex"` // transaction index, or nil if pending
+	TxIndex     *Uint64  `json:"transactionIndex"` // transaction index, or nil if pending
 	From        *Address `json:"from"`             // from
 	Value       Int      `json:"value"`            // value in wei
 	GasPrice    Int      `json:"gasPrice"`         // gas price
-	Gas         Int      `json:"gas"`              // gas spent on transaction
+	Gas         Uint64   `json:"gas"`              // gas spent on transaction
 	Input       Data     `json:"input"`            // input data
 }
 
@@ -545,11 +545,11 @@ func (c *Client) IterateBlocks(from int64, txs bool) *BlockIterator {
 // Receipt is a transaction receipt
 type Receipt struct {
 	Hash        Hash     `json:"transactionHash"`
-	Index       Int      `json:"transactionIndex"`
+	Index       Uint64   `json:"transactionIndex"`
 	BlockHash   Hash     `json:"blockHash"`
-	BlockNumber Int      `json:"blockNumber"`
-	GasUsed     Int      `json:"gasUsed"`
-	Cumulative  Int      `json:"cumulativeGasUsed"`
+	BlockNumber Uint64   `json:"blockNumber"`
+	GasUsed     Uint64   `json:"gasUsed"`
+	Cumulative  Uint64   `json:"cumulativeGasUsed"`
 	Address     *Address `json:"contractAddress"` // contract created, or none if not a contract creation
 	Status      Uint64   `json:"status"`
 	Logs        []Log    `json:"logs"`
@@ -584,11 +584,11 @@ func (c *Client) GetReceipt(tx *Hash) (*Receipt, error) {
 // Log is an Ethereum log (or, in Solidity, an "event")
 type Log struct {
 	Removed     bool    `json:"removed"`
-	LogIndex    *Int    `json:"logIndex"` // nil if pending; same for following fields
-	TxIndex     *Int    `json:"transactionIndex"`
+	LogIndex    *Uint64 `json:"logIndex"` // nil if pending; same for following fields
+	TxIndex     *Uint64 `json:"transactionIndex"`
 	TxHash      *Hash   `json:"transactionHash"`
 	BlockHash   *Hash   `json:"blockHash"`
-	BlockNumber *Int    `json:"blockNumber"`
+	BlockNumber *Uint64 `json:"blockNumber"`
 	Address     Address `json:"address"`
 	Data        Data    `json:"data"`   // serialized log arguments
 	Topics      []Data  `json:"topics"` // indexed log arguments
@@ -622,7 +622,7 @@ func (r *Receipt) ParseTransfer(l *Log) (TokenTransfer, bool) {
 	if !bytes.Equal(l.Topics[0], ERC20Transfer[:]) {
 		return TokenTransfer{}, false
 	}
-	tt := TokenTransfer{Block: flatten(&r.BlockNumber), TxHeight: int(flatten(&r.Index)), Token: l.Address}
+	tt := TokenTransfer{Block: int64(r.BlockNumber), TxHeight: int(r.Index), Token: l.Address}
 	copy(tt.From[:], l.Topics[1][12:]) // these are addresses; first 12 bytes should be zeros
 	copy(tt.To[:], l.Topics[2][12:])
 	setdata(&tt.Amount, l.Data)

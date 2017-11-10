@@ -76,11 +76,15 @@ func (z *Block) DecodeMsg(dc *msgp.Reader) (err error) {
 				z.Number = nil
 			} else {
 				if z.Number == nil {
-					z.Number = new(Int)
+					z.Number = new(Uint64)
 				}
-				err = z.Number.DecodeMsg(dc)
-				if err != nil {
-					return
+				{
+					var zb0002 uint64
+					zb0002, err = dc.ReadUint64()
+					if err != nil {
+						return
+					}
+					*z.Number = Uint64(zb0002)
 				}
 			}
 		case "Hash":
@@ -105,9 +109,13 @@ func (z *Block) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Nonce":
-			err = z.Nonce.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.Nonce = Uint64(zb0003)
 			}
 		case "UncleHash":
 			err = dc.ReadExactBytes((z.UncleHash)[:])
@@ -116,12 +124,12 @@ func (z *Block) DecodeMsg(dc *msgp.Reader) (err error) {
 			}
 		case "Bloom":
 			{
-				var zb0002 []byte
-				zb0002, err = dc.ReadBytes([]byte(z.Bloom))
+				var zb0004 []byte
+				zb0004, err = dc.ReadBytes([]byte(z.Bloom))
 				if err != nil {
 					return
 				}
-				z.Bloom = Data(zb0002)
+				z.Bloom = Data(zb0004)
 			}
 		case "TxRoot":
 			err = dc.ReadExactBytes((z.TxRoot)[:])
@@ -144,46 +152,54 @@ func (z *Block) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "GasLimit":
-			err = z.GasLimit.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0005 uint64
+				zb0005, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.GasLimit = Uint64(zb0005)
 			}
 		case "GasUsed":
-			err = z.GasUsed.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0006 uint64
+				zb0006, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.GasUsed = Uint64(zb0006)
 			}
 		case "Transactions":
-			var zb0003 uint32
-			zb0003, err = dc.ReadArrayHeader()
+			var zb0007 uint32
+			zb0007, err = dc.ReadArrayHeader()
 			if err != nil {
 				return
 			}
-			if cap(z.Transactions) >= int(zb0003) {
-				z.Transactions = (z.Transactions)[:zb0003]
+			if cap(z.Transactions) >= int(zb0007) {
+				z.Transactions = (z.Transactions)[:zb0007]
 			} else {
-				z.Transactions = make([]json.RawMessage, zb0003)
+				z.Transactions = make([]json.RawMessage, zb0007)
 			}
 			for za0008 := range z.Transactions {
 				{
-					var zb0004 string
-					zb0004, err = dc.ReadString()
+					var zb0008 string
+					zb0008, err = dc.ReadString()
 					if err != nil {
 						return
 					}
-					z.Transactions[za0008] = json.RawMessage(zb0004)
+					z.Transactions[za0008] = json.RawMessage(zb0008)
 				}
 			}
 		case "Uncles":
-			var zb0005 uint32
-			zb0005, err = dc.ReadArrayHeader()
+			var zb0009 uint32
+			zb0009, err = dc.ReadArrayHeader()
 			if err != nil {
 				return
 			}
-			if cap(z.Uncles) >= int(zb0005) {
-				z.Uncles = (z.Uncles)[:zb0005]
+			if cap(z.Uncles) >= int(zb0009) {
+				z.Uncles = (z.Uncles)[:zb0009]
 			} else {
-				z.Uncles = make([]Hash, zb0005)
+				z.Uncles = make([]Hash, zb0009)
 			}
 			for za0009 := range z.Uncles {
 				err = dc.ReadExactBytes((z.Uncles[za0009])[:])
@@ -224,18 +240,22 @@ func (z *Block) DecodeMsg(dc *msgp.Reader) (err error) {
 				}
 			}
 		case "Timestamp":
-			err = z.Timestamp.DecodeMsg(dc)
-			if err != nil {
-				return
-			}
-		case "Extra":
 			{
-				var zb0006 []byte
-				zb0006, err = dc.ReadBytes([]byte(z.Extra))
+				var zb0010 uint64
+				zb0010, err = dc.ReadUint64()
 				if err != nil {
 					return
 				}
-				z.Extra = Data(zb0006)
+				z.Timestamp = Uint64(zb0010)
+			}
+		case "Extra":
+			{
+				var zb0011 []byte
+				zb0011, err = dc.ReadBytes([]byte(z.Extra))
+				if err != nil {
+					return
+				}
+				z.Extra = Data(zb0011)
 			}
 		default:
 			err = dc.Skip()
@@ -261,7 +281,7 @@ func (z *Block) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	} else {
-		err = z.Number.EncodeMsg(en)
+		err = en.WriteUint64(uint64(*z.Number))
 		if err != nil {
 			return
 		}
@@ -296,7 +316,7 @@ func (z *Block) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.Nonce.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.Nonce))
 	if err != nil {
 		return
 	}
@@ -359,7 +379,7 @@ func (z *Block) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.GasLimit.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.GasLimit))
 	if err != nil {
 		return
 	}
@@ -368,7 +388,7 @@ func (z *Block) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.GasUsed.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.GasUsed))
 	if err != nil {
 		return
 	}
@@ -439,7 +459,7 @@ func (z *Block) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.Timestamp.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.Timestamp))
 	if err != nil {
 		return
 	}
@@ -464,10 +484,7 @@ func (z *Block) MarshalMsg(b []byte) (o []byte, err error) {
 	if z.Number == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		o, err = z.Number.MarshalMsg(o)
-		if err != nil {
-			return
-		}
+		o = msgp.AppendUint64(o, uint64(*z.Number))
 	}
 	// string "Hash"
 	o = append(o, 0xa4, 0x48, 0x61, 0x73, 0x68)
@@ -481,10 +498,7 @@ func (z *Block) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendBytes(o, (z.Parent)[:])
 	// string "Nonce"
 	o = append(o, 0xa5, 0x4e, 0x6f, 0x6e, 0x63, 0x65)
-	o, err = z.Nonce.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.Nonce))
 	// string "UncleHash"
 	o = append(o, 0xa9, 0x55, 0x6e, 0x63, 0x6c, 0x65, 0x48, 0x61, 0x73, 0x68)
 	o = msgp.AppendBytes(o, (z.UncleHash)[:])
@@ -505,16 +519,10 @@ func (z *Block) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendBytes(o, (z.Miner)[:])
 	// string "GasLimit"
 	o = append(o, 0xa8, 0x47, 0x61, 0x73, 0x4c, 0x69, 0x6d, 0x69, 0x74)
-	o, err = z.GasLimit.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.GasLimit))
 	// string "GasUsed"
 	o = append(o, 0xa7, 0x47, 0x61, 0x73, 0x55, 0x73, 0x65, 0x64)
-	o, err = z.GasUsed.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.GasUsed))
 	// string "Transactions"
 	o = append(o, 0xac, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.Transactions)))
@@ -549,10 +557,7 @@ func (z *Block) MarshalMsg(b []byte) (o []byte, err error) {
 	}
 	// string "Timestamp"
 	o = append(o, 0xa9, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70)
-	o, err = z.Timestamp.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.Timestamp))
 	// string "Extra"
 	o = append(o, 0xa5, 0x45, 0x78, 0x74, 0x72, 0x61)
 	o = msgp.AppendBytes(o, []byte(z.Extra))
@@ -584,11 +589,15 @@ func (z *Block) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				z.Number = nil
 			} else {
 				if z.Number == nil {
-					z.Number = new(Int)
+					z.Number = new(Uint64)
 				}
-				bts, err = z.Number.UnmarshalMsg(bts)
-				if err != nil {
-					return
+				{
+					var zb0002 uint64
+					zb0002, bts, err = msgp.ReadUint64Bytes(bts)
+					if err != nil {
+						return
+					}
+					*z.Number = Uint64(zb0002)
 				}
 			}
 		case "Hash":
@@ -613,9 +622,13 @@ func (z *Block) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Nonce":
-			bts, err = z.Nonce.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.Nonce = Uint64(zb0003)
 			}
 		case "UncleHash":
 			bts, err = msgp.ReadExactBytes(bts, (z.UncleHash)[:])
@@ -624,12 +637,12 @@ func (z *Block) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			}
 		case "Bloom":
 			{
-				var zb0002 []byte
-				zb0002, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Bloom))
+				var zb0004 []byte
+				zb0004, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Bloom))
 				if err != nil {
 					return
 				}
-				z.Bloom = Data(zb0002)
+				z.Bloom = Data(zb0004)
 			}
 		case "TxRoot":
 			bts, err = msgp.ReadExactBytes(bts, (z.TxRoot)[:])
@@ -652,46 +665,54 @@ func (z *Block) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "GasLimit":
-			bts, err = z.GasLimit.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0005 uint64
+				zb0005, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.GasLimit = Uint64(zb0005)
 			}
 		case "GasUsed":
-			bts, err = z.GasUsed.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0006 uint64
+				zb0006, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.GasUsed = Uint64(zb0006)
 			}
 		case "Transactions":
-			var zb0003 uint32
-			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0007 uint32
+			zb0007, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				return
 			}
-			if cap(z.Transactions) >= int(zb0003) {
-				z.Transactions = (z.Transactions)[:zb0003]
+			if cap(z.Transactions) >= int(zb0007) {
+				z.Transactions = (z.Transactions)[:zb0007]
 			} else {
-				z.Transactions = make([]json.RawMessage, zb0003)
+				z.Transactions = make([]json.RawMessage, zb0007)
 			}
 			for za0008 := range z.Transactions {
 				{
-					var zb0004 string
-					zb0004, bts, err = msgp.ReadStringBytes(bts)
+					var zb0008 string
+					zb0008, bts, err = msgp.ReadStringBytes(bts)
 					if err != nil {
 						return
 					}
-					z.Transactions[za0008] = json.RawMessage(zb0004)
+					z.Transactions[za0008] = json.RawMessage(zb0008)
 				}
 			}
 		case "Uncles":
-			var zb0005 uint32
-			zb0005, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0009 uint32
+			zb0009, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				return
 			}
-			if cap(z.Uncles) >= int(zb0005) {
-				z.Uncles = (z.Uncles)[:zb0005]
+			if cap(z.Uncles) >= int(zb0009) {
+				z.Uncles = (z.Uncles)[:zb0009]
 			} else {
-				z.Uncles = make([]Hash, zb0005)
+				z.Uncles = make([]Hash, zb0009)
 			}
 			for za0009 := range z.Uncles {
 				bts, err = msgp.ReadExactBytes(bts, (z.Uncles[za0009])[:])
@@ -732,18 +753,22 @@ func (z *Block) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 			}
 		case "Timestamp":
-			bts, err = z.Timestamp.UnmarshalMsg(bts)
-			if err != nil {
-				return
-			}
-		case "Extra":
 			{
-				var zb0006 []byte
-				zb0006, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Extra))
+				var zb0010 uint64
+				zb0010, bts, err = msgp.ReadUint64Bytes(bts)
 				if err != nil {
 					return
 				}
-				z.Extra = Data(zb0006)
+				z.Timestamp = Uint64(zb0010)
+			}
+		case "Extra":
+			{
+				var zb0011 []byte
+				zb0011, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Extra))
+				if err != nil {
+					return
+				}
+				z.Extra = Data(zb0011)
 			}
 		default:
 			bts, err = msgp.Skip(bts)
@@ -762,7 +787,7 @@ func (z *Block) Msgsize() (s int) {
 	if z.Number == nil {
 		s += msgp.NilSize
 	} else {
-		s += z.Number.Msgsize()
+		s += msgp.Uint64Size
 	}
 	s += 5
 	if z.Hash == nil {
@@ -770,7 +795,7 @@ func (z *Block) Msgsize() (s int) {
 	} else {
 		s += msgp.ArrayHeaderSize + (32 * (msgp.ByteSize))
 	}
-	s += 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + z.Nonce.Msgsize() + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.BytesPrefixSize + len([]byte(z.Bloom)) + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 9 + z.GasLimit.Msgsize() + 8 + z.GasUsed.Msgsize() + 13 + msgp.ArrayHeaderSize
+	s += 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint64Size + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.BytesPrefixSize + len([]byte(z.Bloom)) + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 9 + msgp.Uint64Size + 8 + msgp.Uint64Size + 13 + msgp.ArrayHeaderSize
 	for za0008 := range z.Transactions {
 		s += msgp.StringPrefixSize + len(string(z.Transactions[za0008]))
 	}
@@ -786,7 +811,7 @@ func (z *Block) Msgsize() (s int) {
 	} else {
 		s += z.TotalDifficulty.Msgsize()
 	}
-	s += 10 + z.Timestamp.Msgsize() + 6 + msgp.BytesPrefixSize + len([]byte(z.Extra))
+	s += 10 + msgp.Uint64Size + 6 + msgp.BytesPrefixSize + len([]byte(z.Extra))
 	return
 }
 
@@ -1064,11 +1089,15 @@ func (z *Log) DecodeMsg(dc *msgp.Reader) (err error) {
 				z.LogIndex = nil
 			} else {
 				if z.LogIndex == nil {
-					z.LogIndex = new(Int)
+					z.LogIndex = new(Uint64)
 				}
-				err = z.LogIndex.DecodeMsg(dc)
-				if err != nil {
-					return
+				{
+					var zb0002 uint64
+					zb0002, err = dc.ReadUint64()
+					if err != nil {
+						return
+					}
+					*z.LogIndex = Uint64(zb0002)
 				}
 			}
 		case "TxIndex":
@@ -1080,11 +1109,15 @@ func (z *Log) DecodeMsg(dc *msgp.Reader) (err error) {
 				z.TxIndex = nil
 			} else {
 				if z.TxIndex == nil {
-					z.TxIndex = new(Int)
+					z.TxIndex = new(Uint64)
 				}
-				err = z.TxIndex.DecodeMsg(dc)
-				if err != nil {
-					return
+				{
+					var zb0003 uint64
+					zb0003, err = dc.ReadUint64()
+					if err != nil {
+						return
+					}
+					*z.TxIndex = Uint64(zb0003)
 				}
 			}
 		case "TxHash":
@@ -1128,11 +1161,15 @@ func (z *Log) DecodeMsg(dc *msgp.Reader) (err error) {
 				z.BlockNumber = nil
 			} else {
 				if z.BlockNumber == nil {
-					z.BlockNumber = new(Int)
+					z.BlockNumber = new(Uint64)
 				}
-				err = z.BlockNumber.DecodeMsg(dc)
-				if err != nil {
-					return
+				{
+					var zb0004 uint64
+					zb0004, err = dc.ReadUint64()
+					if err != nil {
+						return
+					}
+					*z.BlockNumber = Uint64(zb0004)
 				}
 			}
 		case "Address":
@@ -1142,32 +1179,32 @@ func (z *Log) DecodeMsg(dc *msgp.Reader) (err error) {
 			}
 		case "Data":
 			{
-				var zb0002 []byte
-				zb0002, err = dc.ReadBytes([]byte(z.Data))
+				var zb0005 []byte
+				zb0005, err = dc.ReadBytes([]byte(z.Data))
 				if err != nil {
 					return
 				}
-				z.Data = Data(zb0002)
+				z.Data = Data(zb0005)
 			}
 		case "Topics":
-			var zb0003 uint32
-			zb0003, err = dc.ReadArrayHeader()
+			var zb0006 uint32
+			zb0006, err = dc.ReadArrayHeader()
 			if err != nil {
 				return
 			}
-			if cap(z.Topics) >= int(zb0003) {
-				z.Topics = (z.Topics)[:zb0003]
+			if cap(z.Topics) >= int(zb0006) {
+				z.Topics = (z.Topics)[:zb0006]
 			} else {
-				z.Topics = make([]Data, zb0003)
+				z.Topics = make([]Data, zb0006)
 			}
 			for za0004 := range z.Topics {
 				{
-					var zb0004 []byte
-					zb0004, err = dc.ReadBytes([]byte(z.Topics[za0004]))
+					var zb0007 []byte
+					zb0007, err = dc.ReadBytes([]byte(z.Topics[za0004]))
 					if err != nil {
 						return
 					}
-					z.Topics[za0004] = Data(zb0004)
+					z.Topics[za0004] = Data(zb0007)
 				}
 			}
 		default:
@@ -1203,7 +1240,7 @@ func (z *Log) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	} else {
-		err = z.LogIndex.EncodeMsg(en)
+		err = en.WriteUint64(uint64(*z.LogIndex))
 		if err != nil {
 			return
 		}
@@ -1219,7 +1256,7 @@ func (z *Log) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	} else {
-		err = z.TxIndex.EncodeMsg(en)
+		err = en.WriteUint64(uint64(*z.TxIndex))
 		if err != nil {
 			return
 		}
@@ -1267,7 +1304,7 @@ func (z *Log) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	} else {
-		err = z.BlockNumber.EncodeMsg(en)
+		err = en.WriteUint64(uint64(*z.BlockNumber))
 		if err != nil {
 			return
 		}
@@ -1320,20 +1357,14 @@ func (z *Log) MarshalMsg(b []byte) (o []byte, err error) {
 	if z.LogIndex == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		o, err = z.LogIndex.MarshalMsg(o)
-		if err != nil {
-			return
-		}
+		o = msgp.AppendUint64(o, uint64(*z.LogIndex))
 	}
 	// string "TxIndex"
 	o = append(o, 0xa7, 0x54, 0x78, 0x49, 0x6e, 0x64, 0x65, 0x78)
 	if z.TxIndex == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		o, err = z.TxIndex.MarshalMsg(o)
-		if err != nil {
-			return
-		}
+		o = msgp.AppendUint64(o, uint64(*z.TxIndex))
 	}
 	// string "TxHash"
 	o = append(o, 0xa6, 0x54, 0x78, 0x48, 0x61, 0x73, 0x68)
@@ -1354,10 +1385,7 @@ func (z *Log) MarshalMsg(b []byte) (o []byte, err error) {
 	if z.BlockNumber == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		o, err = z.BlockNumber.MarshalMsg(o)
-		if err != nil {
-			return
-		}
+		o = msgp.AppendUint64(o, uint64(*z.BlockNumber))
 	}
 	// string "Address"
 	o = append(o, 0xa7, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
@@ -1404,11 +1432,15 @@ func (z *Log) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				z.LogIndex = nil
 			} else {
 				if z.LogIndex == nil {
-					z.LogIndex = new(Int)
+					z.LogIndex = new(Uint64)
 				}
-				bts, err = z.LogIndex.UnmarshalMsg(bts)
-				if err != nil {
-					return
+				{
+					var zb0002 uint64
+					zb0002, bts, err = msgp.ReadUint64Bytes(bts)
+					if err != nil {
+						return
+					}
+					*z.LogIndex = Uint64(zb0002)
 				}
 			}
 		case "TxIndex":
@@ -1420,11 +1452,15 @@ func (z *Log) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				z.TxIndex = nil
 			} else {
 				if z.TxIndex == nil {
-					z.TxIndex = new(Int)
+					z.TxIndex = new(Uint64)
 				}
-				bts, err = z.TxIndex.UnmarshalMsg(bts)
-				if err != nil {
-					return
+				{
+					var zb0003 uint64
+					zb0003, bts, err = msgp.ReadUint64Bytes(bts)
+					if err != nil {
+						return
+					}
+					*z.TxIndex = Uint64(zb0003)
 				}
 			}
 		case "TxHash":
@@ -1468,11 +1504,15 @@ func (z *Log) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				z.BlockNumber = nil
 			} else {
 				if z.BlockNumber == nil {
-					z.BlockNumber = new(Int)
+					z.BlockNumber = new(Uint64)
 				}
-				bts, err = z.BlockNumber.UnmarshalMsg(bts)
-				if err != nil {
-					return
+				{
+					var zb0004 uint64
+					zb0004, bts, err = msgp.ReadUint64Bytes(bts)
+					if err != nil {
+						return
+					}
+					*z.BlockNumber = Uint64(zb0004)
 				}
 			}
 		case "Address":
@@ -1482,32 +1522,32 @@ func (z *Log) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			}
 		case "Data":
 			{
-				var zb0002 []byte
-				zb0002, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Data))
+				var zb0005 []byte
+				zb0005, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Data))
 				if err != nil {
 					return
 				}
-				z.Data = Data(zb0002)
+				z.Data = Data(zb0005)
 			}
 		case "Topics":
-			var zb0003 uint32
-			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0006 uint32
+			zb0006, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				return
 			}
-			if cap(z.Topics) >= int(zb0003) {
-				z.Topics = (z.Topics)[:zb0003]
+			if cap(z.Topics) >= int(zb0006) {
+				z.Topics = (z.Topics)[:zb0006]
 			} else {
-				z.Topics = make([]Data, zb0003)
+				z.Topics = make([]Data, zb0006)
 			}
 			for za0004 := range z.Topics {
 				{
-					var zb0004 []byte
-					zb0004, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Topics[za0004]))
+					var zb0007 []byte
+					zb0007, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Topics[za0004]))
 					if err != nil {
 						return
 					}
-					z.Topics[za0004] = Data(zb0004)
+					z.Topics[za0004] = Data(zb0007)
 				}
 			}
 		default:
@@ -1527,13 +1567,13 @@ func (z *Log) Msgsize() (s int) {
 	if z.LogIndex == nil {
 		s += msgp.NilSize
 	} else {
-		s += z.LogIndex.Msgsize()
+		s += msgp.Uint64Size
 	}
 	s += 8
 	if z.TxIndex == nil {
 		s += msgp.NilSize
 	} else {
-		s += z.TxIndex.Msgsize()
+		s += msgp.Uint64Size
 	}
 	s += 7
 	if z.TxHash == nil {
@@ -1551,7 +1591,7 @@ func (z *Log) Msgsize() (s int) {
 	if z.BlockNumber == nil {
 		s += msgp.NilSize
 	} else {
-		s += z.BlockNumber.Msgsize()
+		s += msgp.Uint64Size
 	}
 	s += 8 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 5 + msgp.BytesPrefixSize + len([]byte(z.Data)) + 7 + msgp.ArrayHeaderSize
 	for za0004 := range z.Topics {
@@ -1728,9 +1768,13 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Index":
-			err = z.Index.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0002 uint64
+				zb0002, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.Index = Uint64(zb0002)
 			}
 		case "BlockHash":
 			err = dc.ReadExactBytes((z.BlockHash)[:])
@@ -1738,19 +1782,31 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "BlockNumber":
-			err = z.BlockNumber.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.BlockNumber = Uint64(zb0003)
 			}
 		case "GasUsed":
-			err = z.GasUsed.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0004 uint64
+				zb0004, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.GasUsed = Uint64(zb0004)
 			}
 		case "Cumulative":
-			err = z.Cumulative.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0005 uint64
+				zb0005, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.Cumulative = Uint64(zb0005)
 			}
 		case "Address":
 			if dc.IsNil() {
@@ -1769,15 +1825,15 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 				}
 			}
 		case "Logs":
-			var zb0002 uint32
-			zb0002, err = dc.ReadArrayHeader()
+			var zb0006 uint32
+			zb0006, err = dc.ReadArrayHeader()
 			if err != nil {
 				return
 			}
-			if cap(z.Logs) >= int(zb0002) {
-				z.Logs = (z.Logs)[:zb0002]
+			if cap(z.Logs) >= int(zb0006) {
+				z.Logs = (z.Logs)[:zb0006]
 			} else {
-				z.Logs = make([]Log, zb0002)
+				z.Logs = make([]Log, zb0006)
 			}
 			for za0004 := range z.Logs {
 				err = z.Logs[za0004].DecodeMsg(dc)
@@ -1812,7 +1868,7 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.Index.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.Index))
 	if err != nil {
 		return
 	}
@@ -1830,7 +1886,7 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.BlockNumber.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.BlockNumber))
 	if err != nil {
 		return
 	}
@@ -1839,7 +1895,7 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.GasUsed.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.GasUsed))
 	if err != nil {
 		return
 	}
@@ -1848,7 +1904,7 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.Cumulative.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.Cumulative))
 	if err != nil {
 		return
 	}
@@ -1895,31 +1951,19 @@ func (z *Receipt) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendBytes(o, (z.Hash)[:])
 	// string "Index"
 	o = append(o, 0xa5, 0x49, 0x6e, 0x64, 0x65, 0x78)
-	o, err = z.Index.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.Index))
 	// string "BlockHash"
 	o = append(o, 0xa9, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x61, 0x73, 0x68)
 	o = msgp.AppendBytes(o, (z.BlockHash)[:])
 	// string "BlockNumber"
 	o = append(o, 0xab, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
-	o, err = z.BlockNumber.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.BlockNumber))
 	// string "GasUsed"
 	o = append(o, 0xa7, 0x47, 0x61, 0x73, 0x55, 0x73, 0x65, 0x64)
-	o, err = z.GasUsed.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.GasUsed))
 	// string "Cumulative"
 	o = append(o, 0xaa, 0x43, 0x75, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65)
-	o, err = z.Cumulative.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.Cumulative))
 	// string "Address"
 	o = append(o, 0xa7, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
 	if z.Address == nil {
@@ -1961,9 +2005,13 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Index":
-			bts, err = z.Index.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0002 uint64
+				zb0002, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.Index = Uint64(zb0002)
 			}
 		case "BlockHash":
 			bts, err = msgp.ReadExactBytes(bts, (z.BlockHash)[:])
@@ -1971,19 +2019,31 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "BlockNumber":
-			bts, err = z.BlockNumber.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.BlockNumber = Uint64(zb0003)
 			}
 		case "GasUsed":
-			bts, err = z.GasUsed.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0004 uint64
+				zb0004, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.GasUsed = Uint64(zb0004)
 			}
 		case "Cumulative":
-			bts, err = z.Cumulative.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0005 uint64
+				zb0005, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.Cumulative = Uint64(zb0005)
 			}
 		case "Address":
 			if msgp.IsNil(bts) {
@@ -2002,15 +2062,15 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 			}
 		case "Logs":
-			var zb0002 uint32
-			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0006 uint32
+			zb0006, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				return
 			}
-			if cap(z.Logs) >= int(zb0002) {
-				z.Logs = (z.Logs)[:zb0002]
+			if cap(z.Logs) >= int(zb0006) {
+				z.Logs = (z.Logs)[:zb0006]
 			} else {
-				z.Logs = make([]Log, zb0002)
+				z.Logs = make([]Log, zb0006)
 			}
 			for za0004 := range z.Logs {
 				bts, err = z.Logs[za0004].UnmarshalMsg(bts)
@@ -2031,7 +2091,7 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Receipt) Msgsize() (s int) {
-	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + z.Index.Msgsize() + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 12 + z.BlockNumber.Msgsize() + 8 + z.GasUsed.Msgsize() + 11 + z.Cumulative.Msgsize() + 8
+	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint64Size + 10 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 12 + msgp.Uint64Size + 8 + msgp.Uint64Size + 11 + msgp.Uint64Size + 8
 	if z.Address == nil {
 		s += msgp.NilSize
 	} else {
@@ -2274,12 +2334,12 @@ func (z *Transaction) DecodeMsg(dc *msgp.Reader) (err error) {
 			}
 		case "Nonce":
 			{
-				var zb0002 []byte
-				zb0002, err = dc.ReadBytes([]byte(z.Nonce))
+				var zb0002 uint64
+				zb0002, err = dc.ReadUint64()
 				if err != nil {
 					return
 				}
-				z.Nonce = Data(zb0002)
+				z.Nonce = Uint64(zb0002)
 			}
 		case "Block":
 			err = dc.ReadExactBytes((z.Block)[:])
@@ -2287,9 +2347,13 @@ func (z *Transaction) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "BlockNumber":
-			err = z.BlockNumber.DecodeMsg(dc)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.BlockNumber = Uint64(zb0003)
 			}
 		case "To":
 			if dc.IsNil() {
@@ -2316,11 +2380,15 @@ func (z *Transaction) DecodeMsg(dc *msgp.Reader) (err error) {
 				z.TxIndex = nil
 			} else {
 				if z.TxIndex == nil {
-					z.TxIndex = new(Int)
+					z.TxIndex = new(Uint64)
 				}
-				err = z.TxIndex.DecodeMsg(dc)
-				if err != nil {
-					return
+				{
+					var zb0004 uint64
+					zb0004, err = dc.ReadUint64()
+					if err != nil {
+						return
+					}
+					*z.TxIndex = Uint64(zb0004)
 				}
 			}
 		case "From":
@@ -2350,18 +2418,22 @@ func (z *Transaction) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Gas":
-			err = z.Gas.DecodeMsg(dc)
-			if err != nil {
-				return
-			}
-		case "Input":
 			{
-				var zb0003 []byte
-				zb0003, err = dc.ReadBytes([]byte(z.Input))
+				var zb0005 uint64
+				zb0005, err = dc.ReadUint64()
 				if err != nil {
 					return
 				}
-				z.Input = Data(zb0003)
+				z.Gas = Uint64(zb0005)
+			}
+		case "Input":
+			{
+				var zb0006 []byte
+				zb0006, err = dc.ReadBytes([]byte(z.Input))
+				if err != nil {
+					return
+				}
+				z.Input = Data(zb0006)
 			}
 		default:
 			err = dc.Skip()
@@ -2390,7 +2462,7 @@ func (z *Transaction) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = en.WriteBytes([]byte(z.Nonce))
+	err = en.WriteUint64(uint64(z.Nonce))
 	if err != nil {
 		return
 	}
@@ -2408,7 +2480,7 @@ func (z *Transaction) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.BlockNumber.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.BlockNumber))
 	if err != nil {
 		return
 	}
@@ -2439,7 +2511,7 @@ func (z *Transaction) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	} else {
-		err = z.TxIndex.EncodeMsg(en)
+		err = en.WriteUint64(uint64(*z.TxIndex))
 		if err != nil {
 			return
 		}
@@ -2483,7 +2555,7 @@ func (z *Transaction) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = z.Gas.EncodeMsg(en)
+	err = en.WriteUint64(uint64(z.Gas))
 	if err != nil {
 		return
 	}
@@ -2508,16 +2580,13 @@ func (z *Transaction) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendBytes(o, (z.Hash)[:])
 	// string "Nonce"
 	o = append(o, 0xa5, 0x4e, 0x6f, 0x6e, 0x63, 0x65)
-	o = msgp.AppendBytes(o, []byte(z.Nonce))
+	o = msgp.AppendUint64(o, uint64(z.Nonce))
 	// string "Block"
 	o = append(o, 0xa5, 0x42, 0x6c, 0x6f, 0x63, 0x6b)
 	o = msgp.AppendBytes(o, (z.Block)[:])
 	// string "BlockNumber"
 	o = append(o, 0xab, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
-	o, err = z.BlockNumber.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.BlockNumber))
 	// string "To"
 	o = append(o, 0xa2, 0x54, 0x6f)
 	if z.To == nil {
@@ -2530,10 +2599,7 @@ func (z *Transaction) MarshalMsg(b []byte) (o []byte, err error) {
 	if z.TxIndex == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		o, err = z.TxIndex.MarshalMsg(o)
-		if err != nil {
-			return
-		}
+		o = msgp.AppendUint64(o, uint64(*z.TxIndex))
 	}
 	// string "From"
 	o = append(o, 0xa4, 0x46, 0x72, 0x6f, 0x6d)
@@ -2556,10 +2622,7 @@ func (z *Transaction) MarshalMsg(b []byte) (o []byte, err error) {
 	}
 	// string "Gas"
 	o = append(o, 0xa3, 0x47, 0x61, 0x73)
-	o, err = z.Gas.MarshalMsg(o)
-	if err != nil {
-		return
-	}
+	o = msgp.AppendUint64(o, uint64(z.Gas))
 	// string "Input"
 	o = append(o, 0xa5, 0x49, 0x6e, 0x70, 0x75, 0x74)
 	o = msgp.AppendBytes(o, []byte(z.Input))
@@ -2589,12 +2652,12 @@ func (z *Transaction) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			}
 		case "Nonce":
 			{
-				var zb0002 []byte
-				zb0002, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Nonce))
+				var zb0002 uint64
+				zb0002, bts, err = msgp.ReadUint64Bytes(bts)
 				if err != nil {
 					return
 				}
-				z.Nonce = Data(zb0002)
+				z.Nonce = Uint64(zb0002)
 			}
 		case "Block":
 			bts, err = msgp.ReadExactBytes(bts, (z.Block)[:])
@@ -2602,9 +2665,13 @@ func (z *Transaction) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "BlockNumber":
-			bts, err = z.BlockNumber.UnmarshalMsg(bts)
-			if err != nil {
-				return
+			{
+				var zb0003 uint64
+				zb0003, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.BlockNumber = Uint64(zb0003)
 			}
 		case "To":
 			if msgp.IsNil(bts) {
@@ -2631,11 +2698,15 @@ func (z *Transaction) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				z.TxIndex = nil
 			} else {
 				if z.TxIndex == nil {
-					z.TxIndex = new(Int)
+					z.TxIndex = new(Uint64)
 				}
-				bts, err = z.TxIndex.UnmarshalMsg(bts)
-				if err != nil {
-					return
+				{
+					var zb0004 uint64
+					zb0004, bts, err = msgp.ReadUint64Bytes(bts)
+					if err != nil {
+						return
+					}
+					*z.TxIndex = Uint64(zb0004)
 				}
 			}
 		case "From":
@@ -2665,18 +2736,22 @@ func (z *Transaction) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Gas":
-			bts, err = z.Gas.UnmarshalMsg(bts)
-			if err != nil {
-				return
-			}
-		case "Input":
 			{
-				var zb0003 []byte
-				zb0003, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Input))
+				var zb0005 uint64
+				zb0005, bts, err = msgp.ReadUint64Bytes(bts)
 				if err != nil {
 					return
 				}
-				z.Input = Data(zb0003)
+				z.Gas = Uint64(zb0005)
+			}
+		case "Input":
+			{
+				var zb0006 []byte
+				zb0006, bts, err = msgp.ReadBytesBytes(bts, []byte(z.Input))
+				if err != nil {
+					return
+				}
+				z.Input = Data(zb0006)
 			}
 		default:
 			bts, err = msgp.Skip(bts)
@@ -2691,7 +2766,7 @@ func (z *Transaction) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Transaction) Msgsize() (s int) {
-	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.BytesPrefixSize + len([]byte(z.Nonce)) + 6 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 12 + z.BlockNumber.Msgsize() + 3
+	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint64Size + 6 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 12 + msgp.Uint64Size + 3
 	if z.To == nil {
 		s += msgp.NilSize
 	} else {
@@ -2701,7 +2776,7 @@ func (z *Transaction) Msgsize() (s int) {
 	if z.TxIndex == nil {
 		s += msgp.NilSize
 	} else {
-		s += z.TxIndex.Msgsize()
+		s += msgp.Uint64Size
 	}
 	s += 5
 	if z.From == nil {
@@ -2709,7 +2784,7 @@ func (z *Transaction) Msgsize() (s int) {
 	} else {
 		s += msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
 	}
-	s += 6 + z.Value.Msgsize() + 9 + z.GasPrice.Msgsize() + 4 + z.Gas.Msgsize() + 6 + msgp.BytesPrefixSize + len([]byte(z.Input))
+	s += 6 + z.Value.Msgsize() + 9 + z.GasPrice.Msgsize() + 4 + msgp.Uint64Size + 6 + msgp.BytesPrefixSize + len([]byte(z.Input))
 	return
 }
 

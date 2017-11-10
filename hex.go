@@ -53,24 +53,25 @@ func hexdecode(dst, src []byte) error {
 	// If the input is an odd-sized hex string,
 	// make sure that it implicitly has a 0 nibble
 	// at the beginning rather than at the end.
-	addend := len(src) & 1
+	addend := uint(len(src) & 1)
 	for i, b := range src[2:] {
-		if a, ok := fromhex(b); !ok {
+		a, ok := fromhex(b)
+		if !ok {
 			return hex.InvalidByteError(b)
-		} else if i%2 == addend {
-			dst[(i+addend)/2] = a << 4
-		} else {
-			dst[(i+addend)/2] |= a
 		}
+		dst[(uint(i)+addend)>>1] |= a << (4 * (^(uint(i) ^ addend) & 1))
 	}
 
 	return nil
 }
 
 // hexstring returns a hex string of the given data
-func hexstring(b []byte) []byte {
+func hexstring(b []byte, trunc bool) []byte {
 	buf := make([]byte, 2+2*len(b))
-	copy(buf, "0x")
 	hex.Encode(buf[2:], b)
+	if trunc && len(buf) > 2 && buf[2] == '0' {
+		buf = buf[1:]
+	}
+	copy(buf, "0x")
 	return buf
 }

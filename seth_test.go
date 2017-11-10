@@ -80,6 +80,17 @@ func TestHexParse(t *testing.T) {
 	if !bytes.Equal(out, want) {
 		t.Fatalf("%x != %x", want, out)
 	}
+
+	// test that we get the same string back out
+	if !bytes.Equal(hexstring(want, true), in) {
+		t.Errorf("%s != %s", hexstring(want, true), in)
+	}
+
+	// test that the encoding of 0 is 0x0
+	zero := []byte{'0', 'x', '0'}
+	if !bytes.Equal(hexstring([]byte{0}, true), zero) {
+		t.Errorf("%s != 0x0", hexstring([]byte{0}, true))
+	}
 }
 
 func TestSign(t *testing.T) {

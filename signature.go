@@ -43,7 +43,7 @@ func ParseSignature(s string) (*Signature, error) {
 
 // String returns a string representation of the signature.
 func (s *Signature) String() string {
-	return string(hexstring(s[:]))
+	return string(hexstring(s[:], false))
 }
 
 // FromString parses a signature from a string.
@@ -53,7 +53,7 @@ func (s *Signature) FromString(z string) error {
 
 // MarshalText implements encoding.TextMarshaler.
 func (s *Signature) MarshalText() ([]byte, error) {
-	return hexstring(s[:]), nil
+	return hexstring(s[:], false), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
@@ -232,7 +232,7 @@ func ParsePrivateKey(s string) (*PrivateKey, error) {
 
 // String returns a string representation of the private key.
 func (k *PrivateKey) String() string {
-	return string(hexstring(k[:]))
+	return string(hexstring(k[:], false))
 }
 
 // FromString parses a private key from a string.
@@ -242,7 +242,7 @@ func (k *PrivateKey) FromString(s string) error {
 
 // MarshalText implements encoding.TextMarshaler.
 func (k *PrivateKey) MarshalText() ([]byte, error) {
-	return hexstring(k[:]), nil
+	return hexstring(k[:], false), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
@@ -281,7 +281,7 @@ func ParsePublicKey(s string) (*PublicKey, error) {
 
 // String returns a string representation of the public key.
 func (k *PublicKey) String() string {
-	return string(hexstring(k[:]))
+	return string(hexstring(k[:], false))
 }
 
 // FromString parses a public key from a string.
@@ -291,7 +291,7 @@ func (k *PublicKey) FromString(s string) error {
 
 // MarshalText implements encoding.TextMarshaler.
 func (k *PublicKey) MarshalText() ([]byte, error) {
-	return hexstring(k[:]), nil
+	return hexstring(k[:], false), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
