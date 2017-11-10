@@ -1,6 +1,7 @@
 package tevm
 
 import (
+	"bytes"
 	"crypto/rand"
 	"testing"
 
@@ -68,4 +69,41 @@ func TestChainBasic(t *testing.T) {
 
 	please(t, c.BalanceOf(&dumb).Int64() == 1e18)
 	please(t, c.BalanceOf(&me).Int64() == 0)
+
+	n := uint64(*c.State.Pending.Number)
+	h := c.State.Pending.Hash
+	c.Seal()
+	n2 := uint64(*c.State.Pending.Number)
+	h2 := c.State.Pending.Hash
+	if n2 != n+1 {
+		t.Errorf("Seal() took block number from %d to %d", n, n2)
+	}
+	if bytes.Equal(h[:], h2[:]) {
+		t.Errorf("blocks have equal hashes...?")
+	}
+
+	// make some state modifications
+	err = c.Send(&dumb, &me, c.BalanceOf(&dumb))
+	if err != nil {
+		t.Fatal("couldn't send balance:", err)
+	}
+
+	please(t, c.BalanceOf(&me).Int64() == 1e18)
+	please(t, c.BalanceOf(&dumb).Int64() == 0)
+
+	// now revert the chain state and see that
+	// we end up in the appropriate reverted state
+	c = c.AtBlock(int64(n2 - 1))
+	if c == nil {
+		t.Fatalf("didn't revert to block %d", n2-1)
+	}
+	if c.State.Pending == nil {
+		t.Fatal("didn't repopulate pending block?")
+	}
+	if uint64(*c.State.Pending.Number) != n {
+		t.Errorf("reverted block has number %d instead of %d", *c.State.Pending.Number, n)
+	}
+
+	please(t, c.BalanceOf(&me).Int64() == 0)
+	please(t, c.BalanceOf(&dumb).Int64() == 1e18)
 }

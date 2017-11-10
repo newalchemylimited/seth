@@ -365,6 +365,26 @@ func (s *gethState) Snapshot() int {
 	return len(s.snapshots) - 1
 }
 
+// atSnap returns a copy of the state at the given snapshot
+func (s *State) atSnap(n int, dst *State) {
+	dst.Trace = s.Trace
+	if n < 0 {
+		return
+	}
+	ns := s.snapshots[n]
+	dst.Trace = s.Trace
+	dst.refund = s.refund.Copy()
+	dst.Accounts = AccountTree{s.Accounts.CopyAt(ns.accounts)}
+	dst.Code = CodeTree{s.Code.CopyAt(ns.code)}
+	dst.Storage = s.Storage.CopyAt(ns.state)
+	dst.Transactions = s.Transactions.CopyAt(ns.txs)
+	dst.Receipts = s.Receipts.CopyAt(ns.rxs)
+	// prevent any updates to this new state
+	// from clobbering the receiver
+	dst.logs = s.logs[:ns.loglen:ns.loglen]
+	dst.snapshots = s.snapshots[:n:n]
+}
+
 func (s *gethState) AddLog(l *types.Log) {
 	if s.Trace != nil {
 		s.Trace("AddLog", l)
@@ -390,9 +410,9 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 // are not threadsafe and must not be accessed concurrently. The methods on
 // this type are threadsafe.
 type Chain struct {
-	State State
-	vm    *vm.EVM
-	mu    sync.Mutex
+	State      State
+	block2snap map[int64]int
+	mu         sync.Mutex
 }
 
 // AtBlock returns the chain state at a given
@@ -401,27 +421,44 @@ type Chain struct {
 // and -2 is interpreted as the latest block (i.e. the
 // chain state just before the pending block).
 func (c *Chain) AtBlock(n int64) *Chain {
-	var b []byte
+	var snap int
 	pending := int64(*c.State.Pending.Number)
 	switch n {
 	case pending - 1, -2: // latest
-		h := n2h(uint64(pending - 1))
-		b = c.State.Blocks.Get(h[:])
-		if b != nil {
+		s, ok := c.block2snap[pending-1]
+		if ok {
+			n = pending - 1
+			snap = s
 			break
 		}
 		fallthrough
 	case pending, -1: // pending
+		n = pending
 		return c
 	default:
-		h := n2h(uint64(n))
-		b = c.State.Blocks.Get(h[:])
+		s, ok := c.block2snap[n]
+		if !ok {
+			return nil
+		}
+		snap = s
 	}
-	if b == nil {
+
+	h := seth.Hash(n2h(uint64(n)))
+	buf := c.State.Blocks.Get(h[:])
+	if buf == nil {
 		return nil
 	}
-	panic("unimplemented")
-	return nil
+
+	nb := new(seth.Block)
+	if _, err := nb.UnmarshalMsg(buf); err != nil {
+		panic(err)
+	}
+
+	cc := new(Chain)
+	c.State.atSnap(snap, &cc.State)
+	cc.State.Pending = nb
+	cc.block2snap = c.block2snap
+	return cc
 }
 
 func l2l(l *types.Log, sl *seth.Log) {
@@ -479,6 +516,7 @@ func NewChain() *Chain {
 	n := seth.Uint64(defaultBlock)
 	h := seth.Hash(n2h(defaultBlock))
 	c := &Chain{
+		block2snap: make(map[int64]int),
 		State: State{
 			Pending: &seth.Block{
 				Number:     &n,
@@ -738,6 +776,10 @@ func js(v interface{}) []byte {
 // and zeroed gas used).
 func (c *Chain) Seal() {
 	b := c.State.Pending
+
+	// seal the current state
+	c.block2snap[int64(*b.Number)] = (*gethState)(&c.State).Snapshot()
+
 	c.State.Blocks.Insert(b.Hash[:], encode(b))
 	n := seth.Uint64(uint64(*b.Number) + 1)
 	h := seth.Hash(n2h(uint64(n)))
@@ -750,5 +792,4 @@ func (c *Chain) Seal() {
 		TotalDifficulty: seth.NewInt(0),
 		Timestamp:       seth.Uint64(time.Now().Unix()),
 	}
-
 }
