@@ -178,7 +178,20 @@ func (i *Int) MarshalText() ([]byte, error) {
 	return hexstring(i.Big().Bytes()), nil
 }
 
+func (i *Int) UnmarshalJSON(b []byte) error {
+	if bytes.Equal(b, rawnull) {
+		return nil
+	}
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		return i.UnmarshalText(b[1 : len(b)-1])
+	}
+	return i.UnmarshalText(b)
+}
+
 func (i *Int) UnmarshalText(b []byte) error {
+	if !hexprefix(b) {
+		return i.Big().UnmarshalText(b)
+	}
 	buf, err := hexparse(b)
 	if err != nil {
 		return err
@@ -524,7 +537,13 @@ type Receipt struct {
 	GasUsed     Int      `json:"gasUsed"`
 	Cumulative  Int      `json:"cumulativeGasUsed"`
 	Address     *Address `json:"contractAddress"` // contract created, or none if not a contract creation
+	Status      Int      `json:"status"`
 	Logs        []Log    `json:"logs"`
+}
+
+// Threw returns whether the transaction threw.
+func (r *Receipt) Threw() bool {
+	return r.Status.IsZero()
 }
 
 func (c *Client) GetCode(addr *Address) ([]byte, error) {
