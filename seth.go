@@ -537,13 +537,13 @@ type Receipt struct {
 	GasUsed     Int      `json:"gasUsed"`
 	Cumulative  Int      `json:"cumulativeGasUsed"`
 	Address     *Address `json:"contractAddress"` // contract created, or none if not a contract creation
-	Status      Int      `json:"status"`
+	Status      Uint64   `json:"status"`
 	Logs        []Log    `json:"logs"`
 }
 
 // Threw returns whether the transaction threw.
 func (r *Receipt) Threw() bool {
-	return r.Status.IsZero()
+	return r.Status == 0
 }
 
 func (c *Client) GetCode(addr *Address) ([]byte, error) {

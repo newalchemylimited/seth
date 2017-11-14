@@ -107,29 +107,25 @@ func (c *Chain) send(a *callArgs) (seth.Hash, error) {
 	evm := c.evm(a.From)
 	nonce := evm.StateDB.GetNonce(a.From)
 	used := int64(a.Gas)
+	status := 1
 
 	if a.GasPrice != 0 {
 		evm.GasPrice.SetUint64(uint64(a.GasPrice))
 	}
 
 	var contract common.Address
-	var failed bool
 
 	if a.To == nil {
 		_, addr, rem, err := evm.Create(a.Ref(), a.Data, uint64(a.Gas), a.Value.Big())
-		if err == vm.ErrOutOfGas {
-			failed = true
-		} else if err != nil {
-			return seth.Hash{}, err
+		if err != nil {
+			status = 0
 		}
 		used -= int64(rem)
 		contract = addr
 	} else {
 		_, rem, err := evm.Call(a.Ref(), *a.To, a.Data, uint64(a.Gas), a.Value.Big())
-		if err == vm.ErrOutOfGas {
-			failed = true
-		} else if err != nil {
-			return seth.Hash{}, err
+		if err != nil {
+			status = 0
 		}
 		used -= int64(rem)
 	}
@@ -162,7 +158,7 @@ func (c *Chain) send(a *callArgs) (seth.Hash, error) {
 	}
 
 	rt := &types.Receipt{
-		Failed:            failed,
+		Status:            uint(status),
 		CumulativeGasUsed: big.NewInt(c.Block.GasUsed),
 		TxHash:            (common.Hash)(tx.Hash),
 		ContractAddress:   contract,
