@@ -113,17 +113,22 @@ func (c *Chain) send(a *callArgs) (seth.Hash, error) {
 	}
 
 	var contract common.Address
+	var failed bool
 
 	if a.To == nil {
 		_, addr, rem, err := evm.Create(a.Ref(), a.Data, uint64(a.Gas), a.Value.Big())
-		if err != nil {
+		if err == vm.ErrOutOfGas {
+			failed = true
+		} else if err != nil {
 			return seth.Hash{}, err
 		}
 		used -= int64(rem)
 		contract = addr
 	} else {
 		_, rem, err := evm.Call(a.Ref(), *a.To, a.Data, uint64(a.Gas), a.Value.Big())
-		if err != nil {
+		if err == vm.ErrOutOfGas {
+			failed = true
+		} else if err != nil {
 			return seth.Hash{}, err
 		}
 		used -= int64(rem)
@@ -157,6 +162,7 @@ func (c *Chain) send(a *callArgs) (seth.Hash, error) {
 	}
 
 	rt := &types.Receipt{
+		Failed:            failed,
 		CumulativeGasUsed: big.NewInt(c.Block.GasUsed),
 		TxHash:            (common.Hash)(tx.Hash),
 		ContractAddress:   contract,
