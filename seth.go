@@ -174,10 +174,12 @@ func (i *Int) String() string {
 	return string(hexstring(i.Big().Bytes()))
 }
 
+// MarshalText implements encoding.TextMarshaler.
 func (i *Int) MarshalText() ([]byte, error) {
 	return hexstring(i.Big().Bytes()), nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
 func (i *Int) UnmarshalJSON(b []byte) error {
 	if bytes.Equal(b, rawnull) {
 		return nil
@@ -188,6 +190,7 @@ func (i *Int) UnmarshalJSON(b []byte) error {
 	return i.UnmarshalText(b)
 }
 
+// UnmarshalText implements encoding.TextUnmarshaler.
 func (i *Int) UnmarshalText(b []byte) error {
 	if !hexprefix(b) {
 		return i.Big().UnmarshalText(b)
@@ -217,6 +220,17 @@ func (i Uint64) MarshalText() ([]byte, error) {
 	var n Int
 	n.SetUint64(uint64(i))
 	return n.MarshalText()
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (i *Uint64) UnmarshalJSON(b []byte) error {
+	if bytes.Equal(b, rawnull) {
+		return nil
+	}
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		return i.UnmarshalText(b[1 : len(b)-1])
+	}
+	return i.UnmarshalText(b)
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
