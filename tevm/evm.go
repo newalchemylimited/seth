@@ -331,7 +331,7 @@ func (s *gethState) RevertToSnapshot(v int) {
 	s.logs = s.logs[:ns.loglen]
 
 	// make sure we can't roll forward
-	snaps = snaps[:v-1]
+	s.snapshots = snaps[:v]
 }
 
 func (s *gethState) Snapshot() int {
