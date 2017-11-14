@@ -174,11 +174,27 @@ func (i *Int) String() string {
 	return string(hexstring(i.Big().Bytes()))
 }
 
+// MarshalText implements encoding.TextMarshaler.
 func (i *Int) MarshalText() ([]byte, error) {
 	return hexstring(i.Big().Bytes()), nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
+func (i *Int) UnmarshalJSON(b []byte) error {
+	if bytes.Equal(b, rawnull) {
+		return nil
+	}
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		return i.UnmarshalText(b[1 : len(b)-1])
+	}
+	return i.UnmarshalText(b)
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
 func (i *Int) UnmarshalText(b []byte) error {
+	if !hexprefix(b) {
+		return i.Big().UnmarshalText(b)
+	}
 	buf, err := hexparse(b)
 	if err != nil {
 		return err
@@ -204,6 +220,17 @@ func (i Uint64) MarshalText() ([]byte, error) {
 	var n Int
 	n.SetUint64(uint64(i))
 	return n.MarshalText()
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (i *Uint64) UnmarshalJSON(b []byte) error {
+	if bytes.Equal(b, rawnull) {
+		return nil
+	}
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		return i.UnmarshalText(b[1 : len(b)-1])
+	}
+	return i.UnmarshalText(b)
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
@@ -524,7 +551,13 @@ type Receipt struct {
 	GasUsed     Int      `json:"gasUsed"`
 	Cumulative  Int      `json:"cumulativeGasUsed"`
 	Address     *Address `json:"contractAddress"` // contract created, or none if not a contract creation
+	Status      Uint64   `json:"status"`
 	Logs        []Log    `json:"logs"`
+}
+
+// Threw returns whether the transaction threw.
+func (r *Receipt) Threw() bool {
+	return r.Status == 0
 }
 
 func (c *Client) GetCode(addr *Address) ([]byte, error) {

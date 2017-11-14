@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -130,5 +131,46 @@ func TestPubKeyToAddress(t *testing.T) {
 	addr2 := pubkey.Address()
 	if *addr1 != *addr2 {
 		t.Errorf("addr mismatch: want: %s have: %s", addr1, addr2)
+	}
+}
+
+func TestReceipt(t *testing.T) {
+	var (
+		good, _ = ParseHash("0x97b25b137505e573d105be57dd4d3f7ddeb69b2c29608c86f055c5266a81c272")
+		bad, _  = ParseHash("0x027aa484de0a14d84f91c4e355f5aeb966c91fd9a144a68b2a704ad882b9f52d")
+		ugly, _ = ParseHash("0xf00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00b")
+	)
+
+	c := NewHTTPClient("https://api.myetherapi.com/eth")
+
+	if r, err := c.GetReceipt(good); err != nil {
+		t.Error(err)
+	} else if r == nil {
+		t.Error("receipt not found")
+	} else if r.Threw() {
+		t.Error("receipt indicates failure")
+	}
+
+	if r, err := c.GetReceipt(bad); err != nil {
+		t.Error(err)
+	} else if r == nil {
+		t.Error("receipt not found")
+	} else if !r.Threw() {
+		t.Error("receipt indicates success")
+	}
+
+	if _, err := c.GetReceipt(ugly); err != ErrNotFound {
+		t.Error("expected not found, but got:", err)
+	}
+}
+
+func TestIntUnmarshal(t *testing.T) {
+	for _, b := range []string{`"0x10"`, `16`, `"16"`} {
+		var i Int
+		if err := json.Unmarshal([]byte(b), &i); err != nil {
+			t.Error(b+":", err)
+		} else if i.Int64() != 16 {
+			t.Error(b+": expected 16, got", i.Int64())
+		}
 	}
 }
