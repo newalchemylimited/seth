@@ -569,6 +569,17 @@ func (c *Chain) Sender(from *seth.Address) *seth.Sender {
 	return seth.NewSender(c.Client(), from)
 }
 
+// SubBalance subtracts from the balance of an account.
+func (c *Chain) SubBalance(addr *seth.Address, v *big.Int) {
+	c.State.impl.SubBalance(common.Address(*addr), v)
+}
+
+// AddBalance adds to the balance of an account.
+func (c *Chain) AddBalance(addr *seth.Address, v *big.Int) {
+	c.State.impl.AddBalance(common.Address(*addr), v)
+}
+
+// BalanceOf returns the balance of the given account.
 func (c *Chain) BalanceOf(addr *seth.Address) *big.Int {
 	acct, _ := c.State.Accounts.GetAccount(addr)
 	bal := acct.Balance()
