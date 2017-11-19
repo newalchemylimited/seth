@@ -23,8 +23,7 @@ func please(t *testing.T, cond bool) {
 
 func TestStateBasic(t *testing.T) {
 	var st State
-	var s gethState
-	s.State = &st
+	s := st.StateDB()
 	var addr common.Address
 	rand.Read(addr[:])
 
