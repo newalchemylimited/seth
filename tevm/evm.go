@@ -370,6 +370,9 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 	panic("ForEachStorage not implemented")
 }
 
+// A Chain is a model of the state of the blockchain. The fields in this type
+// are not threadsafe and must not be accessed concurrently. The methods on
+// this type are threadsafe.
 type Chain struct {
 	State State
 	vm    *vm.EVM
@@ -540,22 +543,30 @@ func (c *Chain) evm(sender [20]byte) *vm.EVM {
 }
 
 func (c *Chain) Create(sender *seth.Address, code []byte) (seth.Address, error) {
+	c.mu.Lock()
 	_, addr, _, err := c.evm(*sender).Create(s2r(sender), code, defaultGasLimit, &zero)
+	c.mu.Unlock()
 	return seth.Address(addr), err
 }
 
 func (c *Chain) Call(sender, dst *seth.Address, sig string, args ...seth.EtherType) ([]byte, error) {
+	c.mu.Lock()
 	ret, _, err := c.evm(*sender).Call(s2r(sender), common.Address(*dst), seth.ABIEncode(sig, args...), defaultGasLimit, &zero)
+	c.mu.Unlock()
 	return ret, err
 }
 
 func (c *Chain) StaticCall(sender, dst *seth.Address, sig string, args ...seth.EtherType) ([]byte, error) {
+	c.mu.Lock()
 	ret, _, err := c.evm(*sender).StaticCall(s2r(sender), common.Address(*dst), seth.ABIEncode(sig, args...), defaultGasLimit)
+	c.mu.Unlock()
 	return ret, err
 }
 
 func (c *Chain) Send(sender, dst *seth.Address, value *big.Int) error {
+	c.mu.Lock()
 	_, _, err := c.evm(*sender).Call(s2r(sender), common.Address(*dst), nil, defaultGasLimit, value)
+	c.mu.Unlock()
 	return err
 }
 
@@ -569,17 +580,23 @@ func (c *Chain) Sender(from *seth.Address) *seth.Sender {
 
 // SubBalance subtracts from the balance of an account.
 func (c *Chain) SubBalance(addr *seth.Address, v *big.Int) {
+	c.mu.Lock()
 	c.State.StateDB().SubBalance(common.Address(*addr), v)
+	c.mu.Unlock()
 }
 
 // AddBalance adds to the balance of an account.
 func (c *Chain) AddBalance(addr *seth.Address, v *big.Int) {
+	c.mu.Lock()
 	c.State.StateDB().AddBalance(common.Address(*addr), v)
+	c.mu.Unlock()
 }
 
 // BalanceOf returns the balance of the given account.
 func (c *Chain) BalanceOf(addr *seth.Address) *big.Int {
+	c.mu.Lock()
 	acct, _ := c.State.Accounts.GetAccount(addr)
+	c.mu.Unlock()
 	bal := acct.Balance()
 	return bal.Big()
 }
