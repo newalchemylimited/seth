@@ -593,6 +593,7 @@ var (
 	SNGLS = NewToken("SNGLS", 0, "0xaec2e87e0a235266d9c5adc9deb4b2e29b54d009")
 	SNT   = NewToken("SNT", 18, "0x744d70fdbe2ba4cf95131626614a1763df805b9e")
 	SWT   = NewToken("SWT", 18, "0xb9e7f8568e08d5659f5d29c4997173d84cdf2607")
+	TKN   = NewToken("TKN", 8, "0xaaaf91d9b90df800df4f55c205fd6989c977e73a")
 	UET   = NewToken("UET", 18, "0x27f706edde3ad952ef647dd67e24e38cd0803dd6")
 	UNI   = NewToken("🦄", 0, "0x89205a3a3b2a69de6dbf7f01ed13b2108b2c43e7")
 	VEROS = NewToken("VEROS", 5, "0xedbaf3c5100302dcdda53269322f3730b1f0416d")
