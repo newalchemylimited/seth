@@ -101,13 +101,8 @@ func (a *AccountTree) SetAccount(addr *seth.Address, acct *Account) {
 	a.Tree.Insert(addr[:], acct[:])
 }
 
-// State implements the garbage vm.StateDB interface
+// State database for the EVM.
 type State struct {
-	// hide the implementation of geth's vm.StateDB
-	// so that we don't leak all of these types into
-	// the documentation
-	impl gethState
-
 	refund   seth.Int
 	Trace    func(fn string, args ...interface{})
 	Accounts AccountTree
@@ -119,9 +114,14 @@ type State struct {
 	snapshots []statesnap
 }
 
-type gethState struct {
-	*State
+// StateDB returns a view of s that implements vm.StateDB.
+func (s *State) StateDB() vm.StateDB {
+	return (*gethState)(s)
 }
+
+// Hide the implementation of geth's vm.StateDB so that we don't leak all of
+// these methods into the documentation.
+type gethState State
 
 type statesnap struct {
 	refund   seth.Int
@@ -254,7 +254,7 @@ func (s *gethState) GetState(addr common.Address, hash common.Hash) common.Hash 
 	}
 	h := stateKey(&addr, &hash)
 	var out common.Hash
-	v := s.State.State.Get(h[:])
+	v := s.State.Get(h[:])
 	copy(out[:], v)
 	return out
 }
@@ -267,9 +267,9 @@ func (s *gethState) SetState(addr common.Address, hash, value common.Hash) {
 	}
 	h := stateKey(&addr, &hash)
 	if value == zerohash {
-		s.State.State.Delete(h[:])
+		s.State.Delete(h[:])
 	} else {
-		s.State.State.Insert(h[:], value[:])
+		s.State.Insert(h[:], value[:])
 	}
 }
 
@@ -327,7 +327,7 @@ func (s *gethState) RevertToSnapshot(v int) {
 	s.refund = ns.refund
 	s.Accounts.Rollback(ns.accounts)
 	s.Code.Rollback(ns.code)
-	s.State.State.Rollback(ns.state)
+	s.State.Rollback(ns.state)
 	s.logs = s.logs[:ns.loglen]
 
 	// make sure we can't roll forward
@@ -342,7 +342,7 @@ func (s *gethState) Snapshot() int {
 		refund:   s.refund.Copy(),
 		accounts: s.Accounts.Snapshot(),
 		code:     s.Code.Snapshot(),
-		state:    s.State.State.Snapshot(),
+		state:    s.State.Snapshot(),
 		loglen:   len(s.logs),
 	}
 	s.snapshots = append(s.snapshots, snap)
@@ -370,6 +370,9 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 	panic("ForEachStorage not implemented")
 }
 
+// A Chain is a model of the state of the blockchain. The fields in this type
+// are not threadsafe and must not be accessed concurrently. The methods on
+// this type are threadsafe.
 type Chain struct {
 	State State
 	vm    *vm.EVM
@@ -442,7 +445,7 @@ func now() uint64 {
 }
 
 func NewChain() *Chain {
-	c := &Chain{
+	return &Chain{
 		transactions: make(map[seth.Hash]*Transaction),
 		receipts:     make(map[seth.Hash]*types.Receipt),
 		Blocks:       make(map[int64]*Block),
@@ -453,8 +456,6 @@ func NewChain() *Chain {
 			Difficulty: defaultDifficulty,
 		},
 	}
-	c.State.impl.State = &c.State
-	return c
 }
 
 // NewAccount creates a new account with some ether in it
@@ -462,7 +463,7 @@ func (c *Chain) NewAccount(ether int) seth.Address {
 	var addr seth.Address
 	rand.Read(addr[:])
 	if ether == 0 {
-		c.State.impl.CreateAccount(common.Address(addr))
+		c.State.StateDB().CreateAccount(common.Address(addr))
 		return addr
 	}
 	var b big.Int
@@ -485,7 +486,7 @@ func cantransfer(s vm.StateDB, addr common.Address, v *big.Int) bool {
 }
 
 func dotransfer(s vm.StateDB, from, to common.Address, v *big.Int) {
-	st := s.(*gethState).State
+	st := s.(*gethState)
 	if st.Trace != nil {
 		st.Trace("Transfer", from.String(), to.String(), v.String())
 	}
@@ -538,26 +539,34 @@ func s2r(sender *seth.Address) vm.ContractRef {
 }
 
 func (c *Chain) evm(sender [20]byte) *vm.EVM {
-	return vm.NewEVM(c.context(sender), &c.State.impl, &theparams, theconfig)
+	return vm.NewEVM(c.context(sender), c.State.StateDB(), &theparams, theconfig)
 }
 
 func (c *Chain) Create(sender *seth.Address, code []byte) (seth.Address, error) {
+	c.mu.Lock()
 	_, addr, _, err := c.evm(*sender).Create(s2r(sender), code, defaultGasLimit, &zero)
+	c.mu.Unlock()
 	return seth.Address(addr), err
 }
 
 func (c *Chain) Call(sender, dst *seth.Address, sig string, args ...seth.EtherType) ([]byte, error) {
+	c.mu.Lock()
 	ret, _, err := c.evm(*sender).Call(s2r(sender), common.Address(*dst), seth.ABIEncode(sig, args...), defaultGasLimit, &zero)
+	c.mu.Unlock()
 	return ret, err
 }
 
 func (c *Chain) StaticCall(sender, dst *seth.Address, sig string, args ...seth.EtherType) ([]byte, error) {
+	c.mu.Lock()
 	ret, _, err := c.evm(*sender).StaticCall(s2r(sender), common.Address(*dst), seth.ABIEncode(sig, args...), defaultGasLimit)
+	c.mu.Unlock()
 	return ret, err
 }
 
 func (c *Chain) Send(sender, dst *seth.Address, value *big.Int) error {
+	c.mu.Lock()
 	_, _, err := c.evm(*sender).Call(s2r(sender), common.Address(*dst), nil, defaultGasLimit, value)
+	c.mu.Unlock()
 	return err
 }
 
@@ -569,8 +578,25 @@ func (c *Chain) Sender(from *seth.Address) *seth.Sender {
 	return seth.NewSender(c.Client(), from)
 }
 
+// SubBalance subtracts from the balance of an account.
+func (c *Chain) SubBalance(addr *seth.Address, v *big.Int) {
+	c.mu.Lock()
+	c.State.StateDB().SubBalance(common.Address(*addr), v)
+	c.mu.Unlock()
+}
+
+// AddBalance adds to the balance of an account.
+func (c *Chain) AddBalance(addr *seth.Address, v *big.Int) {
+	c.mu.Lock()
+	c.State.StateDB().AddBalance(common.Address(*addr), v)
+	c.mu.Unlock()
+}
+
+// BalanceOf returns the balance of the given account.
 func (c *Chain) BalanceOf(addr *seth.Address) *big.Int {
+	c.mu.Lock()
 	acct, _ := c.State.Accounts.GetAccount(addr)
+	c.mu.Unlock()
 	bal := acct.Balance()
 	return bal.Big()
 }

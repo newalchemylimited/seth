@@ -191,7 +191,9 @@ func (c *Chain) transaction(h seth.Hash) (*Transaction, error) {
 
 // balance handles eth_getBalance.
 func (c *Chain) balance(addr *seth.Address) (*seth.Int, error) {
-	return (*seth.Int)(c.BalanceOf(addr)), nil
+	acct, _ := c.State.Accounts.GetAccount(addr)
+	bal := acct.Balance()
+	return &bal, nil
 }
 
 // estimate handles eth_estimateGas.
