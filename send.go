@@ -64,7 +64,7 @@ func (d *Data) EncodeABI(v []byte) []byte {
 
 func (d *Data) internal() {}
 
-func padint(i uint, v []byte) []byte {
+func padint(i int, v []byte) []byte {
 	var w [32]byte
 	binary.BigEndian.PutUint64(w[32-8:], uint64(i))
 	return append(v, w[:]...)
@@ -172,19 +172,19 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 	copy(buf[:4], fhash[:4])
 
 	var dyn []EtherSlice
-	dynoff := uint(len(args)) * 32
+	dynoff := len(args) * 32
 	for _, a := range args {
 		if es, ok := a.(EtherSlice); ok {
 			// just encode the dynamic argument offset
 			buf = padint(dynoff, buf)
 			dyn = append(dyn, es)
-			dynoff += 32
+			dynoff += 32 + 32*es.Len()
 			continue
 		}
 		buf = a.EncodeABI(buf)
 	}
 	for i := range dyn {
-		buf = padint(uint(dyn[i].Len()), buf)
+		buf = padint(dyn[i].Len(), buf)
 		buf = dyn[i].EncodeABI(buf)
 	}
 	return buf
