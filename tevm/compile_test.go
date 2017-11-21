@@ -24,6 +24,16 @@ func TestCompileAndRun(t *testing.T) {
 		t.Error("no sourcemap for Test")
 	}
 
+	if d := cc.Find("counter()"); d == nil {
+		t.Error("couldn't find counter()")
+	}
+	if d := cc.Find("inc()"); d == nil {
+		t.Error("couldn't find inc()")
+	}
+	if d := cc.Find("mustThrow()"); d == nil {
+		t.Error("couldn't find mustThrow()")
+	}
+
 	c := NewChain()
 	me := c.NewAccount(1)
 	s := c.Sender(&me)

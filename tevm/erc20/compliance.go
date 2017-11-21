@@ -52,6 +52,55 @@ func please(t *testing.T, err error) {
 	}
 }
 
+// TestABICompliance tests that the ABI for the contract
+// matches the public interface of an ERC20 token, including
+// constant functions and events.
+func TestABICompliance(t *testing.T, cc *tevm.CompiledContract) {
+	funcs := []struct {
+		sig      string
+		constant bool
+	}{
+		{"transfer(address,uint256)", false},
+		{"approve(address,uint256)", false},
+		{"transferFrom(address,address,uint256)", false},
+		{"allowance(address,address)", true},
+		{"balanceOf(address)", true},
+	}
+	events := []struct {
+		sig     string
+		indexed []int
+	}{
+		{"Transfer(address,address,uint256)", []int{0, 1}},
+		{"Approval(address,address,uint256)", []int{0, 1}},
+	}
+
+	for i := range funcs {
+		d := cc.Find(funcs[i].sig)
+		if d == nil {
+			t.Errorf("couldn't find %q", funcs[i].sig)
+		} else if d.Type != "function" {
+			t.Errorf("%q not a function", funcs[i].sig)
+		} else if d.Constant != funcs[i].constant {
+			t.Errorf("%q (const=%v) != %v", funcs[i].sig, d.Constant, funcs[i].constant)
+		}
+	}
+
+	for i := range events {
+		d := cc.Find(events[i].sig)
+		if d == nil {
+			t.Errorf("couldn't find %q", events[i].sig)
+		} else if d.Type != "event" {
+			t.Errorf("%q not an event", events[i].sig)
+		} else {
+			for _, j := range events[i].indexed {
+				if !d.Inputs[j].Indexed {
+					t.Errorf("%q: arg %d not indexed", events[i].sig, j)
+				}
+			}
+		}
+	}
+}
+
 // TestERC20Compliance is a function that helps verify
 // compliance with the ERC20 standard.
 //

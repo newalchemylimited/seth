@@ -59,7 +59,7 @@ type sourcedesc struct {
 }
 
 type contractout struct {
-	ABI json.RawMessage `json:"abi"`
+	ABI []ABIDescriptor
 	EVM struct {
 		Bytecode struct {
 			Object    string `json:"object"`    // hex string of opcodes
@@ -82,10 +82,33 @@ type srcinfo struct {
 	j uint8 // one of 'i', 'o', or '-'
 }
 
+// ABIParam describes an input or output parameter
+// to an ABIDescriptor
+type ABIParam struct {
+	Name       string     `json:"name" msg:"name"`
+	Type       string     `json:"type" msg:"type"`
+	Components []ABIParam `json:"components,omitempty" msg:"componenets"` // for tuples, nested parameters
+	Indexed    bool       `json:"indexed" msg:"indexed"`                  // for events, whether or not the parameter is indexed
+}
+
+// ABIDescriptor describes a function, constructor, or event
+type ABIDescriptor struct {
+	// one of "function" "constructor" "fallback" "event"
+	Type       string     `json:"type" msg"name"`
+	Name       string     `json:"name" msg:"name"`
+	Inputs     []ABIParam `json:"inputs" msg:"inputs"`
+	Outputs    []ABIParam `json:"outputs,omitempty" msg:"outputs"`
+	Payable    bool       `json:"payable" msg:"payable"`
+	Mutability string     `json:"stateMutability" msg:"stateMutability"` // "pure", "view", "nonpayable", "payable"
+	Constant   bool       `json:"constant" msg:"constant"`               // either "pure" or "view"
+	Anonymous  bool       `json:"anonymous" msg:"anonymous"`
+}
+
 type CompiledContract struct {
-	Name      string `msg:"name"`      // Contract name
-	Code      []byte `msg:"code"`      // Code is the EVM bytecode for a contract
-	Sourcemap string `msg:"sourcemap"` // Sourcemap is the stringified source map for the contract
+	Name      string          `msg:"name"`      // Contract name
+	Code      []byte          `msg:"code"`      // Code is the EVM bytecode for a contract
+	Sourcemap string          `msg:"sourcemap"` // Sourcemap is the stringified source map for the contract
+	ABI       []ABIDescriptor `msg:"abi"`       // Raw JSON ABI
 
 	srcmap []srcinfo
 	pos    []int // pos[pc] = opcode number
@@ -206,6 +229,7 @@ func (s *solcout) toBundle() *CompiledBundle {
 				Name:      contract,
 				Code:      h2b(out.EVM.Bytecode.Object),
 				Sourcemap: out.EVM.Bytecode.Sourcemap,
+				ABI:       out.ABI,
 			})
 		}
 	}

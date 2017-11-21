@@ -17,6 +17,8 @@ func TestEthereumToken(t *testing.T) {
 		t.Fatal("no Token contract")
 	}
 
+	TestABICompliance(t, code)
+
 	c := tevm.NewChain()
 	owner := c.NewAccount(1)
 
