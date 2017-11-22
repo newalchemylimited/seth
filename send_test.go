@@ -35,6 +35,19 @@ func TestArgumentEncoding(t *testing.T) {
 	if string(b) != want {
 		t.Errorf("wanted %q\ngot%q", want, b)
 	}
+
+	// now go the opposite direction
+	const wantret = `"0x00000000000000000000000078bbe6a0fb1a07fd078bf634dcf2a7d0f444d84500000000000000000000000000000000000000000000000000000111f904273b"`
+	to = Address{}
+	amount.SetString("0", 10)
+	d := NewABIDecoder(&to, &amount)
+	err := json.Unmarshal([]byte(wantret), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if to.String() != "0x78bbe6a0fb1a07fd078bf634dcf2a7d0f444d845" {
+		t.Error("bad unmarshal of addr")
+	}
 }
 
 func TestArgumentEncoding2(t *testing.T) {
@@ -79,5 +92,23 @@ func TestArgumentEncoding3(t *testing.T) {
 	return
 	if string(b) != want {
 		t.Errorf("wanted %q\ngot%q", want, b)
+	}
+
+	// input w/o function selector
+	stripped := `"0x` + want[11:]
+	var r0, r1 IntSlice
+	d := NewABIDecoder(&r0, &r1)
+	err := json.Unmarshal([]byte(stripped), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r0) != 2 {
+		t.Errorf("bad length %d r0", len(r0))
+	}
+	if len(r1) != 2 {
+		t.Errorf("bad length %d r1", len(r1))
+	}
+	if r0[0].Int64() != 1 || r0[1].Int64() != 2 || r1[0].Int64() != 3 || r1[1].Int64() != 4 {
+		t.Errorf("bad values: %d %d %d %d", r0[0], r0[1], r1[0], r1[1])
 	}
 }
