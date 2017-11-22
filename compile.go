@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -371,13 +372,13 @@ func Compile(sources []Source) (*CompiledBundle, error) {
 	err = json.NewDecoder(out).Decode(&jsout)
 	if err != nil {
 		cmd.Wait()
-		return nil, err
+		return nil, fmt.Errorf("reading solc output: %s", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("solc: %s", err)
 	}
 	if err := compileError(jsout.Errors); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("solc compilation error: %s", err)
 	}
 	b := jsout.toBundle()
 	for i := range jsout.Errors {
