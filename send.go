@@ -248,24 +248,48 @@ func (c *Client) StorageAt(addr *Address, offset *Hash, block int64) (Hash, erro
 	return out, err
 }
 
+// ABIDecoder is an encoding.TextUnmarshaler
+// that can unpack a JSON-RPC response into
+// its constituent solidity arugments.
 type ABIDecoder []interface{}
 
+// NewABIDecoder constructs an ABIDecoder whose implementation
+// of encoding.TextUnmarshaler unpacks arguments into the provided
+// arguments.
 func NewABIDecoder(args ...interface{}) *ABIDecoder {
 	v := ABIDecoder(args)
 	return &v
 }
 
+// UnmarshalText implements encoding.TextUnmarshaler
 func (d *ABIDecoder) UnmarshalText(v []byte) error {
 	var data Data
 	err := data.UnmarshalText(v)
 	if err != nil {
 		return err
 	}
+	return DecodeABI([]byte(data), (*d)...)
+}
 
+// DecodeABI decodes a solidity return value into its
+// constituent arguments.
+//
+// NOTE: Not all values are supported. Currently,
+// supported types are:
+//
+//  - integers -> all Go integer types, plus big.Int and seth.Int
+//  - bool -> bool
+//  - string -> string
+//  - address -> seth.Address
+//  - uint256[] -> seth.IntSlice
+//  - address[] -> seth.AddrSlice
+//  - bytes -> []byte
+//
+func DecodeABI(v []byte, args ...interface{}) error {
 	var spare big.Int
-	cur := []byte(data)
+	cur := v
 	offset := 0
-	for i, v := range *d {
+	for i, v := range args {
 		if len(cur[offset:]) == 0 {
 			return fmt.Errorf("no argument returned at position %d", i)
 		}

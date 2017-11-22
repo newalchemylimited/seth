@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -10,23 +10,11 @@ import (
 	"strings"
 
 	"github.com/newalchemylimited/seth"
+	"golang.org/x/tools/imports"
 )
-
-var destructors []func()
-
-func atexit(f func()) {
-	destructors = append(destructors, f)
-}
-
-func destroy() {
-	for i := range destructors {
-		destructors[i]()
-	}
-}
 
 func fatal(j interface{}) {
 	fmt.Fprintln(os.Stderr, j)
-	destroy()
 	os.Exit(1)
 }
 
@@ -67,7 +55,6 @@ func outfile() io.WriteCloser {
 }
 
 func main() {
-	defer destroy()
 	flag.Parse()
 	args := flag.Args()
 	if len(args) == 0 {
@@ -86,9 +73,7 @@ func main() {
 		fatal(err)
 	}
 
-	o := outfile()
-	atexit(func() { o.Close() })
-	w := bufio.NewWriter(o)
+	w := bytes.NewBuffer(nil)
 
 	fmt.Fprintf(w, "package %s\n\n", opkg)
 	fmt.Fprintf(w, "import (\n\t\"github.com/newalchemylimited/seth\"\n)\n\n")
@@ -100,18 +85,24 @@ func main() {
 		}
 		generate(w, c)
 	}
-	if err := w.Flush(); err != nil {
+
+	buf, err := imports.Process(ofile, w.Bytes(), nil)
+	if err != nil {
+		fatal("goimports: " + err.Error())
+	}
+
+	f := outfile()
+	_, err = f.Write(buf)
+	if err != nil {
 		fatal(err)
 	}
+	f.Close()
 }
 
 func typeconv(a string) string {
 	switch a {
 	case "bool", "int8", "int16", "int32", "int64",
 		"uint8", "uint16", "uint32", "uint64":
-		// TODO: something better here;
-		// we can just use native go types
-		// if we do a little more work here
 		fallthrough
 	case "int", "uint", "uint128", "uint256":
 		return "*seth.Int"
@@ -121,6 +112,28 @@ func typeconv(a string) string {
 		return "*seth.AddrSlice"
 	case "uint256[]":
 		return "*seth.IntSlice"
+	default:
+		return "seth.Data"
+	}
+}
+
+func rettype(a string) string {
+	switch a {
+	case "bool", "int8", "int16", "int32", "int64",
+		"uint8", "uint16", "uint32", "uint64":
+		return a
+	case "int", "uint", "uint128", "uint256":
+		return "seth.Int"
+	case "address":
+		return "seth.Address"
+	case "address[]":
+		return "seth.AddrSlice"
+	case "uint256[]":
+		return "seth.IntSlice"
+	case "string":
+		return "string"
+	case "bytes":
+		return "[]byte"
 	default:
 		return "seth.Data"
 	}
@@ -167,17 +180,23 @@ func generate(w io.Writer, c *seth.CompiledContract) {
 			// output arguments: for now, just punt
 			// on multiple returns, but try to do
 			// something sane for single-return values
-			var rettype string
-			if len(d.Outputs) == 1 {
-				// sane
-				rettype = deref(typeconv(d.Outputs[0].Type))
-			} else {
-				rettype = "json.RawMessage"
+			var retargs []string
+			for i := range d.Outputs {
+				retargs = append(retargs, fmt.Sprintf("ret%d %s", i, rettype(d.Outputs[i].Type)))
 			}
-			fmt.Fprintf(w, "(ret %s, err error) {\n", rettype)
+			retargs = append(retargs, "err error")
+			fmt.Fprintln(w, "("+strings.Join(retargs, ", ")+") {")
 
 			// body
-			fmt.Fprintf(w, "\terr = z.s.ConstCall(z.addr, %q, &ret", d.Signature())
+
+			retargs = retargs[:0]
+			for i := 0; i < len(d.Outputs); i++ {
+				retargs = append(retargs, fmt.Sprintf("&ret%d", i))
+			}
+
+			fmt.Fprintln(w, "\td := seth.NewABIDecoder("+strings.Join(retargs, ", ")+")")
+
+			fmt.Fprintf(w, "\terr = z.s.ConstCall(z.addr, %q, d", d.Signature())
 			for i := 0; i < len(d.Inputs); i++ {
 				fmt.Fprintf(w, ", arg%d", i)
 			}
