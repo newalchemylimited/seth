@@ -1,13 +1,14 @@
 package tevm
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
-	"math/rand"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/newalchemylimited/seth"
 )
@@ -16,9 +17,45 @@ type callArgs struct {
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      seth.Uint64     `json:"gas"`
-	GasPrice seth.Uint64     `json:"gasPrice"`
+	GasPrice seth.Int        `json:"gasPrice"`
 	Value    seth.Int        `json:"value"`
 	Data     seth.Data       `json:"data"`
+}
+
+func (c *callArgs) tx() *seth.Transaction {
+	return &seth.Transaction{
+		From:     (*seth.Address)(&c.From),
+		To:       (*seth.Address)(c.To),
+		Gas:      c.Gas,
+		GasPrice: c.GasPrice,
+		Value:    c.Value,
+		Input:    c.Data,
+	}
+}
+
+type blocknum int64
+
+var rawlatest = []byte(`"latest"`)
+var rawpending = []byte(`"pending"`)
+var rawearliest = []byte(`"earliest"`)
+
+func (b *blocknum) UnmarshalJSON(buf []byte) error {
+	switch {
+	case bytes.Equal(rawpending, buf):
+		*b = -1
+	case bytes.Equal(rawlatest, buf):
+		*b = -2
+	case bytes.Equal(rawearliest, buf):
+		*b = 0
+	default:
+		// should be an integer
+		i, err := strconv.ParseInt(string(buf), 10, 64)
+		if err != nil {
+			return err
+		}
+		*b = blocknum(i)
+	}
+	return nil
 }
 
 func (a *callArgs) Ref() vm.ContractRef {
@@ -32,62 +69,83 @@ func (c *Chain) Execute(method string, params []json.RawMessage, res interface{}
 		c.mu.Unlock()
 		return errors.New(method + ": not enough params")
 	}
-	ret, err := c.execute(method, params[0])
+	ret, err := c.execute(method, params)
 	if err != nil {
 		c.mu.Unlock()
 		return err
 	}
 	c.mu.Unlock()
-	return marshal(ret, res)
+	return gross(ret, res)
 }
 
-func (c *Chain) execute(method string, param json.RawMessage) (interface{}, error) {
+func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, error) {
+	var b blocknum
 	switch method {
 	case "eth_call":
-		a := new(callArgs)
-		if err := marshal(param, a); err != nil {
+		tx := new(callArgs)
+		if err := marshal(params, tx, &b); err != nil {
 			return nil, err
 		}
-		return c.constCall(a)
+		return c.staticCall(tx, int64(b))
 	case "eth_sendTransaction":
 		a := new(callArgs)
-		if err := marshal(param, a); err != nil {
+		if err := marshal(params, a); err != nil {
 			return nil, err
 		}
-		return c.send(a)
+		return c.send(a.tx())
 	case "eth_getTransactionReceipt":
 		var h seth.Hash
-		if err := marshal(param, &h); err != nil {
+		if err := marshal(params, &h); err != nil {
 			return nil, err
 		}
 		return c.receipt(h)
 	case "eth_getTransactionByHash":
 		var h seth.Hash
-		if err := marshal(param, &h); err != nil {
+		if err := marshal(params, &h); err != nil {
 			return nil, err
 		}
 		return c.transaction(h)
 	case "eth_getBalance":
 		var addr seth.Address
-		if err := marshal(param, &addr); err != nil {
+		if err := marshal(params, &addr, &b); err != nil {
 			return nil, err
 		}
-		return c.balance(&addr)
+		return c.balance(&addr, int64(b))
 	case "eth_estimateGas":
 		a := new(callArgs)
-		if err := marshal(param, a); err != nil {
+		if err := marshal(params, a, &b); err != nil {
 			return nil, err
 		}
-		return c.estimate(a)
+		return c.estimate(a, int64(b))
+	case "eth_getBlockByHash":
+		var h seth.Hash
+		var all bool
+		if err := marshal(params, &h, &all); err != nil {
+			return nil, err
+		}
+		return c.getBlock(&h, all)
+	case "eth_getBlockByNumber":
+		var n seth.Int
+		var all bool
+		if err := marshal(params, &n, &all); err != nil {
+			return nil, err
+		}
+		// hack: block hashes are hashes of the block number
+		h := seth.Hash(n2h(uint64(n.Int64())))
+		return c.getBlock(&h, all)
 	default:
 		return nil, errors.New(method + ": unsupported method")
 	}
 }
 
 // constCall handles eth_call.
-func (c *Chain) constCall(a *callArgs) (seth.Data, error) {
+func (c *Chain) staticCall(a *callArgs, blocknum int64) (seth.Data, error) {
+	c = c.AtBlock(blocknum)
+	if c == nil {
+		return nil, fmt.Errorf("unknown block number %d", blocknum)
+	}
 	evm := c.evm(a.From)
-	gas := uint64(c.Block.GasLimit)
+	gas := uint64(c.State.Pending.GasLimit)
 	if a.Gas != 0 {
 		gas = uint64(a.Gas)
 	}
@@ -102,107 +160,108 @@ func (c *Chain) constCall(a *callArgs) (seth.Data, error) {
 	return seth.Data(ret), nil
 }
 
-// send handles eth_sendTransaction.
-func (c *Chain) send(a *callArgs) (seth.Hash, error) {
-	evm := c.evm(a.From)
-	nonce := evm.StateDB.GetNonce(a.From)
-	used := int64(a.Gas)
-	status := 1
-
-	if a.GasPrice != 0 {
-		evm.GasPrice.SetUint64(uint64(a.GasPrice))
-	}
-
-	var contract common.Address
-
-	if a.To == nil {
-		_, addr, rem, err := evm.Create(a.Ref(), a.Data, uint64(a.Gas), a.Value.Big())
-		if err != nil {
-			status = 0
-		}
-		used -= int64(rem)
-		contract = addr
+func (c *Chain) getBlock(h *seth.Hash, fulltx bool) (*seth.Block, error) {
+	var b *seth.Block
+	if bytes.Equal(h[:], c.State.Pending.Hash[:]) {
+		b = c.State.Pending
 	} else {
-		_, rem, err := evm.Call(a.Ref(), *a.To, a.Data, uint64(a.Gas), a.Value.Big())
-		if err != nil {
-			status = 0
+		buf := c.State.Blocks.Get(h[:])
+		if buf == nil {
+			return nil, fmt.Errorf("unknown block hash %s", h)
 		}
-		used -= int64(rem)
+		b = new(seth.Block)
+		if _, err := b.UnmarshalMsg(buf); err != nil {
+			return nil, err
+		}
+	}
+	if !fulltx {
+		return b, nil
 	}
 
-	tx := &Transaction{
-		BlockHash:   c.Block.Hash(),
-		BlockNumber: seth.Uint64(c.Block.Number),
-		From:        seth.Address(a.From),
-		Gas:         seth.Uint64(used),
-		GasPrice:    seth.Uint64(evm.Context.GasPrice.Uint64()),
-		Input:       a.Data,
-		Nonce:       seth.Uint64(nonce),
-		To:          (*seth.Address)(a.To),
-		Index:       1,
-		Value:       a.Value,
+	// populate the block transactions appropriately
+	var txh seth.Hash
+	var tx seth.Transaction
+	ntx := make([]json.RawMessage, 0, len(b.Transactions))
+	for i := range b.Transactions {
+		err := json.Unmarshal(b.Transactions[i], &txh)
+		if err != nil {
+			return nil, fmt.Errorf("internal error: malformed tx %q", b.Transactions[i])
+		}
+		txbuf := c.State.Transactions.Get(txh[:])
+		if txbuf == nil {
+			return nil, fmt.Errorf("internal error: no such tx %q", txh)
+		}
+		tx = seth.Transaction{}
+		if _, err := tx.UnmarshalMsg(txbuf); err != nil {
+			return nil, err
+		}
+		ntx = append(ntx, js(tx))
 	}
-	rand.Read(tx.Hash[:])
+	b.Transactions = ntx
+	return b, nil
+}
 
-	c.Block.GasUsed += used
-	c.Block.Transactions = append(c.Block.Transactions, tx.Hash)
-	c.Blocks[c.Block.Number] = c.Block
-
-	c.Block = &Block{
-		Coinbase:   c.Block.Coinbase,
-		Number:     c.Block.Number + 1,
-		Time:       now(),
-		GasPrice:   c.Block.GasPrice,
-		GasLimit:   c.Block.GasLimit,
-		Difficulty: c.Block.Difficulty,
+// send handles eth_sendTransaction
+func (c *Chain) send(a *seth.Transaction) (*seth.Hash, error) {
+	_, h, err := c.Mine(a)
+	if err != nil {
+		return nil, err
 	}
-
-	rt := &types.Receipt{
-		Status:            uint(status),
-		CumulativeGasUsed: big.NewInt(c.Block.GasUsed),
-		TxHash:            (common.Hash)(tx.Hash),
-		ContractAddress:   contract,
-		GasUsed:           big.NewInt(used),
-	}
-
-	c.transactions[tx.Hash] = tx
-	c.receipts[tx.Hash] = rt
-
-	return tx.Hash, nil
+	// For now, 1 tx per block.
+	c.Seal()
+	return &h, nil
 }
 
 // receipt handles eth_getTransactionReceipt.
-func (c *Chain) receipt(h seth.Hash) (*types.Receipt, error) {
-	r := c.receipts[h]
-	if r == nil {
-		return nil, errors.New("not found")
+func (c *Chain) receipt(h seth.Hash) (*seth.Receipt, error) {
+	b := c.State.Receipts.Get(h[:])
+	if b == nil {
+		return nil, fmt.Errorf("receipt %s not found", h)
+	}
+	r := new(seth.Receipt)
+	_, err := r.UnmarshalMsg(b)
+	if err != nil {
+		return nil, err
 	}
 	return r, nil
 }
 
 // transaction handles eth_getTransactionByHash.
-func (c *Chain) transaction(h seth.Hash) (*Transaction, error) {
-	tx := c.transactions[h]
-	if tx == nil {
-		return nil, errors.New("not found")
+func (c *Chain) transaction(h seth.Hash) (*seth.Transaction, error) {
+	b := c.State.Transactions.Get(h[:])
+	if b == nil {
+		return nil, fmt.Errorf("no such transaction %s", h.String())
+	}
+	tx := new(seth.Transaction)
+	_, err := tx.UnmarshalMsg(b)
+	if err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
 
 // balance handles eth_getBalance.
-func (c *Chain) balance(addr *seth.Address) (*seth.Int, error) {
-	acct, _ := c.State.Accounts.GetAccount(addr)
-	bal := acct.Balance()
-	return &bal, nil
+func (c *Chain) balance(addr *seth.Address, block int64) (*seth.Int, error) {
+	c = c.AtBlock(block)
+	if c == nil {
+		return nil, fmt.Errorf("unknown block number %d", block)
+	}
+	return (*seth.Int)(c.balanceOf(addr)), nil
 }
 
 // estimate handles eth_estimateGas.
-func (c *Chain) estimate(a *callArgs) (seth.Uint64, error) {
+func (c *Chain) estimate(a *callArgs, blocknum int64) (seth.Uint64, error) {
+	c = c.AtBlock(blocknum)
+	if c == nil {
+		return 0, fmt.Errorf("unknown block number %d", blocknum)
+	}
 	evm := c.evm(a.From)
-	evm.Context.GasPrice.SetInt64(0)
+
+	// TODO: incorporate gas price
+	evm.Context.GasPrice = big.NewInt(0)
 	snap := evm.StateDB.Snapshot()
 
-	gas := uint64(c.Block.GasLimit)
+	gas := uint64(c.State.Pending.GasLimit)
 	if a.Gas != 0 {
 		gas = uint64(a.Gas)
 	}
@@ -226,10 +285,20 @@ func (c *Chain) estimate(a *callArgs) (seth.Uint64, error) {
 	return seth.Uint64(gas), nil
 }
 
-func marshal(from, to interface{}) error {
-	b, err := json.Marshal(from)
+func marshal(from []json.RawMessage, to ...interface{}) error {
+	if len(from) != len(to) {
+		fmt.Errorf("expected %d params; found %d", len(to), len(from))
+	}
+	for i := range from {
+		gross(from[i], to[i])
+	}
+	return nil
+}
+
+func gross(x, y interface{}) error {
+	b, err := json.Marshal(x)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(b, to)
+	return json.Unmarshal(b, y)
 }

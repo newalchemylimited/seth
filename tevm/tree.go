@@ -176,6 +176,31 @@ func (t *Tree) Snapshot() int {
 	return s
 }
 
+// CopyAt returns a logical copy of thre tree
+// at a given snapshot. (As an optimization, the
+// data itself is not copied.) Updates to the returned
+// Tree will not be reflected in t.
+//
+// A safe copy of the current state of the tree
+// can be obtained through code like
+//
+//     t.CopyAt(t.Snapshot())
+//
+func (t *Tree) CopyAt(snap int) Tree {
+	if snap < 0 {
+		return Tree{}
+	}
+	s := t.snaps[snap]
+	return Tree{
+		snaps: t.snaps[:snap+1],
+		root:  s.root,
+		// make sure any appends to the node list
+		// cause reallocation of the backing data
+		all:   t.all[:s.allocated:s.allocated],
+		epoch: t.epoch + 1,
+	}
+}
+
 // Rollback reverts the tree to an old snapshot state.
 // Note that the tree can not be rolled forward; rolling
 // back to a prior snapshot is irreversible.
