@@ -1,4 +1,4 @@
-package tevm
+package seth
 
 import (
 	"compress/gzip"

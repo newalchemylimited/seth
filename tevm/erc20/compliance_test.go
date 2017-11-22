@@ -8,7 +8,7 @@ import (
 )
 
 func TestEthereumToken(t *testing.T) {
-	bundle, err := tevm.CompileGlob("*.sol")
+	bundle, err := seth.CompileGlob("*.sol")
 	if err != nil {
 		t.Fatal(err)
 	}

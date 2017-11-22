@@ -2,14 +2,13 @@ package tevm
 
 import (
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/newalchemylimited/seth"
 )
 
 func TestCompileAndRun(t *testing.T) {
-	bundle, err := CompileGlob("*.sol")
+	bundle, err := seth.CompileGlob("*.sol")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,12 +65,7 @@ func TestCompileAndRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sender: inc(): %q", err)
 	}
-	opts := &seth.CallOpts{
-		From: &me,
-		To:   &contract,
-	}
-	opts.EncodeCall("counter()")
-	if err := s.ConstCall(opts, (*seth.Int)(&v), true); err != nil {
+	if err := s.ConstCall(&contract, "counter()", (*seth.Int)(&v)); err != nil {
 		t.Fatalf("sender: counter(): %q", err)
 	}
 	if v.Int64() != 2 {
@@ -96,17 +90,5 @@ func TestCompileAndRun(t *testing.T) {
 	v.SetBytes(bits)
 	if v.Int64() != 3 {
 		t.Errorf("expected counter to be 3; found %d", v.Int64())
-	}
-}
-
-func TestParseInfo(t *testing.T) {
-	var c0, c1 CompiledContract
-	c0.Sourcemap = "1:2:1;1:9:1;2:9:2;2:9:2;2:9:2"
-	c0.compileSourcemap()
-	c1.Sourcemap = "1:2:1;:9;2::2;;"
-	c1.compileSourcemap()
-
-	if !reflect.DeepEqual(c0.srcmap, c1.srcmap) {
-		t.Errorf("%v != %v", c0.srcmap, c1.srcmap)
 	}
 }

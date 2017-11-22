@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/newalchemylimited/seth/tevm"
+	"github.com/newalchemylimited/seth"
 )
 
 var destructors []func()
@@ -44,12 +44,12 @@ func init() {
 	flag.StringVar(&opkg, "p", os.Getenv("GOPACKAGE"), "output package name")
 }
 
-func readfile(v string) tevm.Source {
+func readfile(v string) seth.Source {
 	buf, err := ioutil.ReadFile(v)
 	if err != nil {
 		fatal(err)
 	}
-	return tevm.Source{
+	return seth.Source{
 		Filename: v,
 		Body:     string(buf),
 	}
@@ -76,12 +76,12 @@ func main() {
 
 	contracts := strings.Split(cstr, ",")
 
-	var sources []tevm.Source
+	var sources []seth.Source
 	for i := range args {
 		sources = append(sources, readfile(args[i]))
 	}
 
-	bundle, err := tevm.Compile(sources)
+	bundle, err := seth.Compile(sources)
 	if err != nil {
 		fatal(err)
 	}
@@ -133,7 +133,7 @@ func deref(v string) string {
 	return v
 }
 
-func generate(w io.Writer, c *tevm.CompiledContract) {
+func generate(w io.Writer, c *seth.CompiledContract) {
 	// type decl
 	fmt.Fprintf(w, "type %s struct {\n", c.Name)
 	fmt.Fprintln(w, "\taddr  *seth.Address")

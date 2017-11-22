@@ -55,7 +55,7 @@ func please(t *testing.T, err error) {
 // TestABICompliance tests that the ABI for the contract
 // matches the public interface of an ERC20 token, including
 // constant functions and events.
-func TestABICompliance(t *testing.T, cc *tevm.CompiledContract) {
+func TestABICompliance(t *testing.T, cc *seth.CompiledContract) {
 	funcs := []struct {
 		sig      string
 		constant bool
