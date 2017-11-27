@@ -23,6 +23,7 @@ func please(t *testing.T, cond bool) {
 }
 
 func TestStateBasic(t *testing.T) {
+	t.Parallel()
 	var st State
 	s := st.StateDB()
 	var addr common.Address
@@ -39,6 +40,7 @@ func TestStateBasic(t *testing.T) {
 }
 
 func TestChainBasic(t *testing.T) {
+	t.Parallel()
 	c := NewChain()
 	// c.State.Trace = tracefn(t) // -- for debugging
 	me := c.NewAccount(1)

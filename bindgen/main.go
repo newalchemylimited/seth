@@ -177,11 +177,9 @@ func generate(w io.Writer, c *seth.CompiledContract) {
 		fmt.Fprint(w, strings.Join(argstrs, ", ")+") ")
 
 		if d.Constant {
-			// output arguments: for now, just punt
-			// on multiple returns, but try to do
-			// something sane for single-return values
 			var retargs []string
 			for i := range d.Outputs {
+				// TODO: handle composite types (tuples, structs)
 				retargs = append(retargs, fmt.Sprintf("ret%d %s", i, rettype(d.Outputs[i].Type)))
 			}
 			retargs = append(retargs, "err error")

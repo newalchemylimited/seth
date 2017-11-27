@@ -21,6 +21,7 @@ func mustNotContain(t *testing.T, tree *Tree, key []byte) {
 }
 
 func TestTree(t *testing.T) {
+	t.Parallel()
 	var tree Tree
 
 	mustNotContain(t, &tree, []byte("foo"))
