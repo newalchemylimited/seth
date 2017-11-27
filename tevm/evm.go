@@ -719,6 +719,7 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 
 	var gas uint64
 	var addr common.Address
+	status := 1
 	vm := c.evm(*tx.From)
 	if tx.To == nil {
 		ret, addr, gas, err = vm.Create(s2r(tx.From), []byte(tx.Input), uint64(tx.Gas), tx.Value.Big())
@@ -726,9 +727,8 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 		ret, gas, err = vm.Call(s2r(tx.From), common.Address(*tx.To), []byte(tx.Input), uint64(tx.Gas), tx.Value.Big())
 	}
 
-	// TODO: compute gas fee and do the appropriate debit/credit
 	if err != nil {
-		return
+		status = 0
 	}
 
 	used := uint64(tx.Gas) - gas
@@ -751,6 +751,7 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 		GasUsed:    seth.Uint64(used),
 		Cumulative: b.GasUsed,
 		Logs:       lconv(c.State.logs[l0:]),
+		Status:     seth.Uint64(status),
 	}
 	if tx.To == nil {
 		rx.Address = new(seth.Address)
