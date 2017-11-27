@@ -1824,16 +1824,25 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 					return
 				}
 			}
+		case "Status":
+			{
+				var zb0006 uint64
+				zb0006, err = dc.ReadUint64()
+				if err != nil {
+					return
+				}
+				z.Status = Uint64(zb0006)
+			}
 		case "Logs":
-			var zb0006 uint32
-			zb0006, err = dc.ReadArrayHeader()
+			var zb0007 uint32
+			zb0007, err = dc.ReadArrayHeader()
 			if err != nil {
 				return
 			}
-			if cap(z.Logs) >= int(zb0006) {
-				z.Logs = (z.Logs)[:zb0006]
+			if cap(z.Logs) >= int(zb0007) {
+				z.Logs = (z.Logs)[:zb0007]
 			} else {
-				z.Logs = make([]Log, zb0006)
+				z.Logs = make([]Log, zb0007)
 			}
 			for za0004 := range z.Logs {
 				err = z.Logs[za0004].DecodeMsg(dc)
@@ -1853,9 +1862,9 @@ func (z *Receipt) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 8
+	// map header, size 9
 	// write "Hash"
-	err = en.Append(0x88, 0xa4, 0x48, 0x61, 0x73, 0x68)
+	err = en.Append(0x89, 0xa4, 0x48, 0x61, 0x73, 0x68)
 	if err != nil {
 		return err
 	}
@@ -1924,6 +1933,15 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 			return
 		}
 	}
+	// write "Status"
+	err = en.Append(0xa6, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73)
+	if err != nil {
+		return err
+	}
+	err = en.WriteUint64(uint64(z.Status))
+	if err != nil {
+		return
+	}
 	// write "Logs"
 	err = en.Append(0xa4, 0x4c, 0x6f, 0x67, 0x73)
 	if err != nil {
@@ -1945,9 +1963,9 @@ func (z *Receipt) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *Receipt) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 8
+	// map header, size 9
 	// string "Hash"
-	o = append(o, 0x88, 0xa4, 0x48, 0x61, 0x73, 0x68)
+	o = append(o, 0x89, 0xa4, 0x48, 0x61, 0x73, 0x68)
 	o = msgp.AppendBytes(o, (z.Hash)[:])
 	// string "Index"
 	o = append(o, 0xa5, 0x49, 0x6e, 0x64, 0x65, 0x78)
@@ -1971,6 +1989,9 @@ func (z *Receipt) MarshalMsg(b []byte) (o []byte, err error) {
 	} else {
 		o = msgp.AppendBytes(o, (*z.Address)[:])
 	}
+	// string "Status"
+	o = append(o, 0xa6, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73)
+	o = msgp.AppendUint64(o, uint64(z.Status))
 	// string "Logs"
 	o = append(o, 0xa4, 0x4c, 0x6f, 0x67, 0x73)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.Logs)))
@@ -2061,16 +2082,25 @@ func (z *Receipt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					return
 				}
 			}
+		case "Status":
+			{
+				var zb0006 uint64
+				zb0006, bts, err = msgp.ReadUint64Bytes(bts)
+				if err != nil {
+					return
+				}
+				z.Status = Uint64(zb0006)
+			}
 		case "Logs":
-			var zb0006 uint32
-			zb0006, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0007 uint32
+			zb0007, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				return
 			}
-			if cap(z.Logs) >= int(zb0006) {
-				z.Logs = (z.Logs)[:zb0006]
+			if cap(z.Logs) >= int(zb0007) {
+				z.Logs = (z.Logs)[:zb0007]
 			} else {
-				z.Logs = make([]Log, zb0006)
+				z.Logs = make([]Log, zb0007)
 			}
 			for za0004 := range z.Logs {
 				bts, err = z.Logs[za0004].UnmarshalMsg(bts)
@@ -2097,7 +2127,7 @@ func (z *Receipt) Msgsize() (s int) {
 	} else {
 		s += msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
 	}
-	s += 5 + msgp.ArrayHeaderSize
+	s += 7 + msgp.Uint64Size + 5 + msgp.ArrayHeaderSize
 	for za0004 := range z.Logs {
 		s += z.Logs[za0004].Msgsize()
 	}
