@@ -25,11 +25,13 @@ func usage() {
 var cstr string
 var ofile string
 var opkg string
+var bin bool
 
 func init() {
 	flag.StringVar(&cstr, "c", "", "contracts for which to generate code")
 	flag.StringVar(&ofile, "o", "", "output file")
 	flag.StringVar(&opkg, "p", os.Getenv("GOPACKAGE"), "output package name")
+	flag.BoolVar(&bin, "b", false, "output binary as a go variable")
 }
 
 func readfile(v string) seth.Source {
@@ -88,6 +90,7 @@ func main() {
 
 	buf, err := imports.Process(ofile, w.Bytes(), nil)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, w.String())
 		fatal("goimports: " + err.Error())
 	}
 
@@ -147,6 +150,10 @@ func deref(v string) string {
 }
 
 func generate(w io.Writer, c *seth.CompiledContract) {
+	if bin {
+		fmt.Fprintf(w, "var %sCode = %#v\n", c.Name, c.Code)
+	}
+
 	// type decl
 	fmt.Fprintf(w, "type %s struct {\n", c.Name)
 	fmt.Fprintln(w, "\taddr  *seth.Address")

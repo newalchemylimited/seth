@@ -43,6 +43,11 @@ contract Test {
 		t.Error("no sourcemap for Test")
 	}
 
+	stripped := StripBytecode(cc.Code)
+	if len(stripped) != len(cc.Code)-43 {
+		t.Error("didn't strip bytecode")
+	}
+
 	if d := cc.Find("counter()"); d == nil {
 		t.Error("couldn't find counter()")
 	}

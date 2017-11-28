@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime"
@@ -9,7 +10,7 @@ import (
 	"github.com/newalchemylimited/seth/tevm"
 )
 
-//go:generate bindgen -c=Test -o generated.go compiletest.sol
+//go:generate bindgen -b -c=Test -o generated.go compiletest.sol
 
 func fatal(j ...interface{}) {
 	fmt.Fprintln(os.Stderr, j...)
@@ -40,7 +41,14 @@ func main() {
 	c := tevm.NewChain()
 	acct := c.NewAccount(1)
 
-	addr, err := c.Create(&acct, bundle.Contract("Test").Code)
+	contract := bundle.Contract("Test")
+	ccode := contract.Code
+
+	if !bytes.Equal(seth.StripBytecode(ccode), seth.StripBytecode(TestCode)) {
+		fatal("compiled and precompiled code not identical")
+	}
+
+	addr, err := c.Create(&acct, TestCode)
 	if err != nil {
 		fatal("deploying the contract:", err)
 	}

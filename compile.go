@@ -1,6 +1,7 @@
 package seth
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
@@ -114,6 +115,39 @@ type CompiledContract struct {
 
 	srcmap []srcinfo
 	pos    []int // pos[pc] = opcode number
+}
+
+var metadataPrefix = []byte{0xa1, 0x65, 'b', 'z', 'z', 'r', '0', 0x58, 0x20}
+var metadataSuffix = []byte{0x00, 0x29}
+
+// MetadataHash tries to return the portion of a
+// compiled solidity contract that represents the
+// hash of the metadata. If the metadata can't be
+// found, a nil slice is returned.
+func MetadataHash(b []byte) []byte {
+	// see: http://solidity.readthedocs.io/en/develop/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
+	mp := len(metadataPrefix)
+	ms := len(metadataSuffix)
+	mlen := 32 + mp + ms
+	if len(b) < mlen {
+		return nil
+	}
+	suffix := b[len(b)-mlen:]
+	if !bytes.Equal(suffix[:mp], metadataPrefix) ||
+		!bytes.Equal(suffix[mp+32:], metadataSuffix) {
+		return nil
+	}
+	return suffix[mp : mp+32]
+}
+
+// StripBytecode returns the portion of the bytecode
+// that isn't solidity metadata. If no solidity metadata
+// is present, the argument is returned unchanged.
+func StripBytecode(b []byte) []byte {
+	if MetadataHash(b) != nil {
+		return b[:len(b)-43]
+	}
+	return b
 }
 
 func mustint(s string) int {
