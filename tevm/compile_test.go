@@ -8,6 +8,7 @@ import (
 )
 
 func TestCompileAndRun(t *testing.T) {
+	t.Parallel()
 	bundle, err := seth.CompileGlob("*.sol")
 	if err != nil {
 		t.Fatal(err)

@@ -105,6 +105,7 @@ type ABIDescriptor struct {
 	Anonymous  bool       `json:"anonymous" msg:"anonymous"`
 }
 
+// CompiledContract represents a single solidity contract.
 type CompiledContract struct {
 	Name      string          `msg:"name"`      // Contract name
 	Code      []byte          `msg:"code"`      // Code is the EVM bytecode for a contract
@@ -187,6 +188,8 @@ func (c *CompiledContract) compileSourcemap() {
 
 //go:generate msgp
 
+// CompiledBundle represents the output of a single invocation of solc.
+// A CompiledBundle contains zero or more contracts.
 type CompiledBundle struct {
 	Filenames []string           `msg:"filenames"` // Input filenames in sourcemap ID order
 	Sources   []string           `msg:"sources"`   // actual source code, in filename order
@@ -399,6 +402,9 @@ func CompileGlob(glob string) (*CompiledBundle, error) {
 	matches, err := filepath.Glob(glob)
 	if err != nil {
 		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("glob %q matches zero files", matches)
 	}
 	var body []byte
 	sources := make([]Source, len(matches))

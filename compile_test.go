@@ -6,7 +6,29 @@ import (
 )
 
 func TestCompileABI(t *testing.T) {
-	bundle, err := CompileGlob("*.sol")
+	bundle, err := Compile([]Source{{
+		Body: `pragma solidity >=0.4.10;
+contract Test {
+	uint public counter;
+
+	function Test() {
+	}
+
+	function value() constant returns(uint) {
+		return counter;
+	}
+
+	function mustThrow() {
+		require(false);
+	}
+
+	function inc() {
+		counter = counter + 1;
+	}
+}
+`,
+		Filename: "test.sol",
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
