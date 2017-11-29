@@ -3,6 +3,8 @@ package tevm
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -108,4 +110,29 @@ func TestChainBasic(t *testing.T) {
 
 	please(t, c.BalanceOf(&me).Int64() == 0)
 	please(t, c.BalanceOf(&dumb).Int64() == 1e18)
+}
+
+// Test that a chain can be JSON marshaled and recovered.
+func TestChainSerialization(t *testing.T) {
+	chain := NewChain()
+
+	me := chain.NewAccount(1)
+	chain.Create(&me, []byte{0xf0, 0x00, 0xba, 0x40})
+	*chain.State.Pending.Number += 42
+	chain.Seal()
+
+	b, err := json.Marshal(chain.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state := new(State)
+
+	if err := json.Unmarshal(b, state); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(&chain.State, state) {
+		t.Fatal("chain state did not match:\n", &chain.State, "\n", state)
+	}
 }

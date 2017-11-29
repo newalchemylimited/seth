@@ -58,8 +58,8 @@ func TestTree(t *testing.T) {
 
 	// inserts should have 'perfect' efficiency; there
 	// should be no wasted CoW nodes
-	if setsize != len(tree.all) {
-		t.Errorf("expected %d total nodes; found %d", setsize, len(tree.all))
+	if setsize != len(tree.All) {
+		t.Errorf("expected %d total nodes; found %d", setsize, len(tree.All))
 	}
 
 	var prev []byte
@@ -106,7 +106,7 @@ func TestTree(t *testing.T) {
 		}
 	}
 
-	t.Logf("after deleting half, %d nodes", len(tree.all))
+	t.Logf("after deleting half, %d nodes", len(tree.All))
 
 	// revert to the old state and see that everything is there
 	tree.Rollback(snap0)
@@ -154,7 +154,7 @@ func TestTree(t *testing.T) {
 	if iters != setsize/2 {
 		t.Fatalf("expected %d items; found %d", setsize/2, iters)
 	}
-	t.Logf("after deleting half again, %d nodes", len(tree.all))
+	t.Logf("after deleting half again, %d nodes", len(tree.All))
 }
 
 func BenchmarkTreeInsert500(b *testing.B) {

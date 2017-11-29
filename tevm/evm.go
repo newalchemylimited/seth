@@ -105,8 +105,8 @@ func (a *AccountTree) SetAccount(addr *seth.Address, acct *Account) {
 
 // State database for the EVM.
 type State struct {
-	refund seth.Int
-	Trace  func(fn string, args ...interface{})
+	Refund seth.Int
+	Trace  func(fn string, args ...interface{}) `json:"-"`
 
 	Pending *seth.Block
 
@@ -120,8 +120,8 @@ type State struct {
 
 	Blocks Tree // key = n2h(blocknum) = hash, value = serialized block
 
-	logs      []*types.Log
-	snapshots []statesnap
+	Logs      []*types.Log
+	Snapshots []statesnap
 }
 
 // StateDB returns a view of s that implements vm.StateDB.
@@ -134,13 +134,13 @@ func (s *State) StateDB() vm.StateDB {
 type gethState State
 
 type statesnap struct {
-	refund   seth.Int
-	accounts int
-	code     int
-	state    int
-	loglen   int
-	txs      int
-	rxs      int
+	Refund   seth.Int
+	Accounts int
+	Code     int
+	State    int
+	LogLen   int
+	TXs      int
+	RXs      int
 }
 
 func (s *gethState) CreateAccount(addr common.Address) {
@@ -245,12 +245,12 @@ func (s *gethState) GetCodeSize(addr common.Address) int {
 }
 
 func (s *gethState) AddRefund(v *big.Int) {
-	b := (*big.Int)(&s.refund)
+	b := (*big.Int)(&s.Refund)
 	b.Add(b, v)
 }
 
 func (s *gethState) GetRefund() *big.Int {
-	return (*big.Int)(&s.refund)
+	return (*big.Int)(&s.Refund)
 }
 
 func stateKey(addr *common.Address, hash *common.Hash) seth.Hash {
@@ -331,18 +331,18 @@ func (s *gethState) RevertToSnapshot(v int) {
 	if s.Trace != nil {
 		s.Trace("RevertToSnapshot", v)
 	}
-	snaps := s.snapshots
+	snaps := s.Snapshots
 	if len(snaps) <= v || v < 0 {
 		panic("no such snapshot")
 	}
 	ns := snaps[v]
-	s.refund = ns.refund
-	s.Accounts.Rollback(ns.accounts)
-	s.Code.Rollback(ns.code)
-	s.Storage.Rollback(ns.state)
-	s.Transactions.Rollback(ns.txs)
-	s.Receipts.Rollback(ns.rxs)
-	s.logs = s.logs[:ns.loglen]
+	s.Refund = ns.Refund.Copy()
+	s.Accounts.Rollback(ns.Accounts)
+	s.Code.Rollback(ns.Code)
+	s.Storage.Rollback(ns.State)
+	s.Transactions.Rollback(ns.TXs)
+	s.Receipts.Rollback(ns.RXs)
+	s.Logs = s.Logs[:ns.LogLen]
 
 	// make sure we can't roll forward
 	snaps = snaps[:v]
@@ -353,16 +353,16 @@ func (s *gethState) Snapshot() int {
 		s.Trace("Snapshot")
 	}
 	snap := statesnap{
-		refund:   s.refund.Copy(),
-		accounts: s.Accounts.Snapshot(),
-		code:     s.Code.Snapshot(),
-		state:    s.Storage.Snapshot(),
-		txs:      s.Transactions.Snapshot(),
-		rxs:      s.Receipts.Snapshot(),
-		loglen:   len(s.logs),
+		Refund:   s.Refund.Copy(),
+		Accounts: s.Accounts.Snapshot(),
+		Code:     s.Code.Snapshot(),
+		State:    s.Storage.Snapshot(),
+		TXs:      s.Transactions.Snapshot(),
+		RXs:      s.Receipts.Snapshot(),
+		LogLen:   len(s.Logs),
 	}
-	s.snapshots = append(s.snapshots, snap)
-	return len(s.snapshots) - 1
+	s.Snapshots = append(s.Snapshots, snap)
+	return len(s.Snapshots) - 1
 }
 
 // atSnap returns a copy of the state at the given snapshot
@@ -371,25 +371,25 @@ func (s *State) atSnap(n int, dst *State) {
 	if n < 0 {
 		return
 	}
-	ns := s.snapshots[n]
+	ns := s.Snapshots[n]
 	dst.Trace = s.Trace
-	dst.refund = s.refund.Copy()
-	dst.Accounts = AccountTree{s.Accounts.CopyAt(ns.accounts)}
-	dst.Code = CodeTree{s.Code.CopyAt(ns.code)}
-	dst.Storage = s.Storage.CopyAt(ns.state)
-	dst.Transactions = s.Transactions.CopyAt(ns.txs)
-	dst.Receipts = s.Receipts.CopyAt(ns.rxs)
+	dst.Refund = s.Refund.Copy()
+	dst.Accounts = AccountTree{s.Accounts.CopyAt(ns.Accounts)}
+	dst.Code = CodeTree{s.Code.CopyAt(ns.Code)}
+	dst.Storage = s.Storage.CopyAt(ns.State)
+	dst.Transactions = s.Transactions.CopyAt(ns.TXs)
+	dst.Receipts = s.Receipts.CopyAt(ns.RXs)
 	// prevent any updates to this new state
 	// from clobbering the receiver
-	dst.logs = s.logs[:ns.loglen:ns.loglen]
-	dst.snapshots = s.snapshots[:n:n]
+	dst.Logs = s.Logs[:ns.LogLen:ns.LogLen]
+	dst.Snapshots = s.Snapshots[:n:n]
 }
 
 func (s *gethState) AddLog(l *types.Log) {
 	if s.Trace != nil {
 		s.Trace("AddLog", l)
 	}
-	s.logs = append(s.logs, l)
+	s.Logs = append(s.Logs, l)
 }
 
 func (s *gethState) AddPreimage(h common.Hash, b []byte) {
@@ -488,7 +488,7 @@ func lconv(l []*types.Log) []seth.Log {
 }
 
 func (c *Chain) Logs() []seth.Log {
-	return lconv(c.State.logs)
+	return lconv(c.State.Logs)
 }
 
 func n2h(u uint64) common.Hash {
@@ -715,7 +715,7 @@ func encode(v msgp.Marshaler) []byte {
 // rather than offering all of the gas in the block to the transaction,
 // which more faithfully mimics the behavior of an actual ethereum node.
 func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) {
-	l0 := len(c.State.logs)
+	l0 := len(c.State.Logs)
 
 	var gas uint64
 	var addr common.Address
@@ -750,7 +750,7 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 		Index:      *tx.TxIndex,
 		GasUsed:    seth.Uint64(used),
 		Cumulative: b.GasUsed,
-		Logs:       lconv(c.State.logs[l0:]),
+		Logs:       lconv(c.State.Logs[l0:]),
 		Status:     seth.Uint64(status),
 	}
 	if tx.To == nil {
