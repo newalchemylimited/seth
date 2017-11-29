@@ -8,13 +8,11 @@ import (
 )
 
 func do(t *testing.T, cmdline string) {
-	t.Helper()
 	f := strings.Fields(cmdline)
-	cmd := exec.Command(f[0], f[1:]...)
-	t.Log(cmdline)
-	err := cmd.Run()
+	buf, err := exec.Command(f[0], f[1:]...).CombinedOutput()
 	if err != nil {
-		t.Fatal(cmdline+":", err)
+		t.Logf("%s: %s\n", cmdline, err)
+		t.Fatalf("command output:\n%s\n", string(buf))
 	}
 }
 
