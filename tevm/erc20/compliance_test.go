@@ -8,7 +8,7 @@ import (
 )
 
 func TestEthereumToken(t *testing.T) {
-	bundle, err := tevm.CompileGlob("*.sol")
+	bundle, err := seth.CompileGlob("*.sol")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,6 +16,8 @@ func TestEthereumToken(t *testing.T) {
 	if code == nil {
 		t.Fatal("no Token contract")
 	}
+
+	TestABICompliance(t, code)
 
 	c := tevm.NewChain()
 	owner := c.NewAccount(1)

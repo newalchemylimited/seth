@@ -247,3 +247,161 @@ func (c *Client) StorageAt(addr *Address, offset *Hash, block int64) (Hash, erro
 	err := c.do("eth_getStorageAt", []json.RawMessage{buf, buf2, buf3}, &out)
 	return out, err
 }
+
+// ABIDecoder is an encoding.TextUnmarshaler
+// that can unpack a JSON-RPC response into
+// its constituent solidity arugments.
+type ABIDecoder []interface{}
+
+// NewABIDecoder constructs an ABIDecoder whose implementation
+// of encoding.TextUnmarshaler unpacks arguments into the provided
+// arguments.
+func NewABIDecoder(args ...interface{}) *ABIDecoder {
+	v := ABIDecoder(args)
+	return &v
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (d *ABIDecoder) UnmarshalText(v []byte) error {
+	var data Data
+	err := data.UnmarshalText(v)
+	if err != nil {
+		return err
+	}
+	return DecodeABI([]byte(data), (*d)...)
+}
+
+// DecodeABI decodes a solidity return value into its
+// constituent arguments.
+//
+// NOTE: Not all values are supported. Currently,
+// supported types are:
+//
+//  - integers -> all Go integer types, plus big.Int and seth.Int
+//  - bool -> bool
+//  - string -> string
+//  - address -> seth.Address
+//  - uint256[] -> seth.IntSlice
+//  - address[] -> seth.AddrSlice
+//  - bytes -> []byte
+//
+func DecodeABI(v []byte, args ...interface{}) error {
+	var spare big.Int
+	cur := v
+	offset := 0
+	for i, v := range args {
+		if len(cur[offset:]) == 0 {
+			return fmt.Errorf("no argument returned at position %d", i)
+		}
+		buf := cur[offset:]
+		if len(buf) > 32 {
+			buf = buf[:32]
+		}
+
+		// easy cases that don't involve converting types
+		// or handling variable-length types
+		did := true
+		switch v := v.(type) {
+		case *Address:
+			copy(v[:], cur[12:])
+		case *Int:
+			(*big.Int)(v).SetBytes(buf)
+		case *big.Int:
+			v.SetBytes(buf)
+		default:
+			did = false
+		}
+		if did {
+			continue
+		}
+
+		spare.SetBytes(buf)
+		switch v := v.(type) {
+		case *string:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad string offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+length >= int64(len(cur)) {
+				fmt.Errorf("bad string length %d for data length returned (%d)", length, len(cur))
+			}
+			*v = string(cur[dpos : dpos+length])
+		case *[]byte:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+length >= int64(len(cur)) {
+				fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
+			}
+			*v = make([]byte, length)
+			copy(*v, cur[dpos:dpos+length])
+		case *IntSlice:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+(length*32) >= int64(len(cur)) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			s := make([]Int, length)
+			for i := range s {
+				o := int(dpos) + i*32
+				(*big.Int)(&s[i]).SetBytes(cur[o : o+32])
+			}
+			*v = IntSlice(s)
+		case *AddrSlice:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+(length*32) >= int64(len(cur)) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			s := make([]Address, length)
+			for i := range s {
+				o := int(dpos) + i*32
+				copy(s[i][:], cur[o+12:o+32])
+			}
+			*v = AddrSlice(s)
+		case *bool:
+			*v = spare.Sign() != 0
+		case *uint8:
+			*v = uint8(spare.Uint64())
+		case *uint16:
+			*v = uint16(spare.Uint64())
+		case *uint32:
+			*v = uint32(spare.Uint64())
+		case *uint64:
+			*v = uint64(spare.Uint64())
+		case *int8:
+			*v = int8(spare.Int64())
+		case *int16:
+			*v = int16(spare.Int64())
+		case *int32:
+			*v = int32(spare.Int64())
+		case *int64:
+			*v = int64(spare.Int64())
+		case *int:
+			*v = int(spare.Int64())
+		case *uint:
+			*v = uint(spare.Uint64())
+		default:
+			return fmt.Errorf("unrecognized type %T", v)
+		}
+		offset += 32
+	}
+	return nil
+}

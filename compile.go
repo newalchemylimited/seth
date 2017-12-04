@@ -1,9 +1,11 @@
-package tevm
+package seth
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -59,7 +61,7 @@ type sourcedesc struct {
 }
 
 type contractout struct {
-	ABI json.RawMessage `json:"abi"`
+	ABI []ABIDescriptor
 	EVM struct {
 		Bytecode struct {
 			Object    string `json:"object"`    // hex string of opcodes
@@ -82,13 +84,70 @@ type srcinfo struct {
 	j uint8 // one of 'i', 'o', or '-'
 }
 
+// ABIParam describes an input or output parameter
+// to an ABIDescriptor
+type ABIParam struct {
+	Name       string     `json:"name" msg:"name"`
+	Type       string     `json:"type" msg:"type"`
+	Components []ABIParam `json:"components,omitempty" msg:"componenets"` // for tuples, nested parameters
+	Indexed    bool       `json:"indexed" msg:"indexed"`                  // for events, whether or not the parameter is indexed
+}
+
+// ABIDescriptor describes a function, constructor, or event
+type ABIDescriptor struct {
+	// one of "function" "constructor" "fallback" "event"
+	Type       string     `json:"type" msg"name"`
+	Name       string     `json:"name" msg:"name"`
+	Inputs     []ABIParam `json:"inputs" msg:"inputs"`
+	Outputs    []ABIParam `json:"outputs,omitempty" msg:"outputs"`
+	Payable    bool       `json:"payable" msg:"payable"`
+	Mutability string     `json:"stateMutability" msg:"stateMutability"` // "pure", "view", "nonpayable", "payable"
+	Constant   bool       `json:"constant" msg:"constant"`               // either "pure" or "view"
+	Anonymous  bool       `json:"anonymous" msg:"anonymous"`
+}
+
+// CompiledContract represents a single solidity contract.
 type CompiledContract struct {
-	Name      string `msg:"name"`      // Contract name
-	Code      []byte `msg:"code"`      // Code is the EVM bytecode for a contract
-	Sourcemap string `msg:"sourcemap"` // Sourcemap is the stringified source map for the contract
+	Name      string          `msg:"name"`      // Contract name
+	Code      []byte          `msg:"code"`      // Code is the EVM bytecode for a contract
+	Sourcemap string          `msg:"sourcemap"` // Sourcemap is the stringified source map for the contract
+	ABI       []ABIDescriptor `msg:"abi"`       // Raw JSON ABI
 
 	srcmap []srcinfo
 	pos    []int // pos[pc] = opcode number
+}
+
+var metadataPrefix = []byte{0xa1, 0x65, 'b', 'z', 'z', 'r', '0', 0x58, 0x20}
+var metadataSuffix = []byte{0x00, 0x29}
+
+// MetadataHash tries to return the portion of a
+// compiled solidity contract that represents the
+// hash of the metadata. If the metadata can't be
+// found, a nil slice is returned.
+func MetadataHash(b []byte) []byte {
+	// see: http://solidity.readthedocs.io/en/develop/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
+	mp := len(metadataPrefix)
+	ms := len(metadataSuffix)
+	mlen := 32 + mp + ms
+	if len(b) < mlen {
+		return nil
+	}
+	suffix := b[len(b)-mlen:]
+	if !bytes.Equal(suffix[:mp], metadataPrefix) ||
+		!bytes.Equal(suffix[mp+32:], metadataSuffix) {
+		return nil
+	}
+	return suffix[mp : mp+32]
+}
+
+// StripBytecode returns the portion of the bytecode
+// that isn't solidity metadata. If no solidity metadata
+// is present, the argument is returned unchanged.
+func StripBytecode(b []byte) []byte {
+	if MetadataHash(b) != nil {
+		return b[:len(b)-43]
+	}
+	return b
 }
 
 func mustint(s string) int {
@@ -163,6 +222,8 @@ func (c *CompiledContract) compileSourcemap() {
 
 //go:generate msgp
 
+// CompiledBundle represents the output of a single invocation of solc.
+// A CompiledBundle contains zero or more contracts.
 type CompiledBundle struct {
 	Filenames []string           `msg:"filenames"` // Input filenames in sourcemap ID order
 	Sources   []string           `msg:"sources"`   // actual source code, in filename order
@@ -206,6 +267,7 @@ func (s *solcout) toBundle() *CompiledBundle {
 				Name:      contract,
 				Code:      h2b(out.EVM.Bytecode.Object),
 				Sourcemap: out.EVM.Bytecode.Sourcemap,
+				ABI:       out.ABI,
 			})
 		}
 	}
@@ -347,13 +409,13 @@ func Compile(sources []Source) (*CompiledBundle, error) {
 	err = json.NewDecoder(out).Decode(&jsout)
 	if err != nil {
 		cmd.Wait()
-		return nil, err
+		return nil, fmt.Errorf("reading solc output: %s", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("solc: %s", err)
 	}
 	if err := compileError(jsout.Errors); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("solc compilation error: %s", err)
 	}
 	b := jsout.toBundle()
 	for i := range jsout.Errors {
@@ -374,6 +436,9 @@ func CompileGlob(glob string) (*CompiledBundle, error) {
 	matches, err := filepath.Glob(glob)
 	if err != nil {
 		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("glob %q matches zero files", matches)
 	}
 	var body []byte
 	sources := make([]Source, len(matches))

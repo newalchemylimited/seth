@@ -10,6 +10,7 @@ import (
 )
 
 func TestHashes(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		h    Hash
 		s    string
@@ -28,6 +29,7 @@ func TestHashes(t *testing.T) {
 }
 
 func TestScanAddress(t *testing.T) {
+	t.Parallel()
 	const in = "hi 0x6810e776880c02933d47db1b9fc05908e5386b96 bye"
 
 	var a, b string
@@ -42,6 +44,7 @@ func TestScanAddress(t *testing.T) {
 }
 
 func TestScanHash(t *testing.T) {
+	t.Parallel()
 	const in = "hi 0x2801d9a7473b13e05282308e3006c22126503e2fb23212bffaef5567c5952494 bye"
 	var a, b string
 	var h Hash
@@ -55,6 +58,7 @@ func TestScanHash(t *testing.T) {
 }
 
 func TestScanHexInt(t *testing.T) {
+	t.Parallel()
 	const in = "hi 0x123 bye"
 	var a, b string
 	var i Int
@@ -68,6 +72,7 @@ func TestScanHexInt(t *testing.T) {
 }
 
 func TestHexParse(t *testing.T) {
+	t.Parallel()
 	// odd-length hex strings have an implicit
 	// zero at the beginning, not the end (since
 	// they represent big-endian numbers)
@@ -94,6 +99,7 @@ func TestHexParse(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
+	t.Parallel()
 	var hash Hash
 
 	for i := 0; i < 100; i++ {
@@ -137,6 +143,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestPubKeyToAddress(t *testing.T) {
+	t.Parallel()
 	pubkey, _ := ParsePublicKey("0x3f509f1ce5b0d2b255ba3c0a51ce36dcb06928904ebd8313f9e2e0a37cd5d60aefef6fb6a2e0a1708634a7d82df71bf103ab720247e215ced7643d9b1f85dc87")
 	addr1, _ := ParseAddress("0x95f9aee97b55b06fb246a523bc36dbcf2cadf5f2")
 	addr2 := pubkey.Address()
@@ -146,6 +153,7 @@ func TestPubKeyToAddress(t *testing.T) {
 }
 
 func TestReceipt(t *testing.T) {
+	t.Parallel()
 	var (
 		good, _ = ParseHash("0x97b25b137505e573d105be57dd4d3f7ddeb69b2c29608c86f055c5266a81c272")
 		bad, _  = ParseHash("0x027aa484de0a14d84f91c4e355f5aeb966c91fd9a144a68b2a704ad882b9f52d")
@@ -176,6 +184,7 @@ func TestReceipt(t *testing.T) {
 }
 
 func TestIntUnmarshal(t *testing.T) {
+	t.Parallel()
 	for _, b := range []string{`"0x10"`, `16`, `"16"`} {
 		var i Int
 		if err := json.Unmarshal([]byte(b), &i); err != nil {
