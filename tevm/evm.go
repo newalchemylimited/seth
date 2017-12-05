@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/newalchemylimited/seth"
 	"github.com/tinylib/msgp/msgp"
@@ -623,6 +624,36 @@ func (c *Chain) Create(sender *seth.Address, code []byte) (seth.Address, error) 
 	_, addr, _, err := c.evm(*sender).Create(s2r(sender), code, defaultGasLimit, &zero)
 	c.mu.Unlock()
 	return seth.Address(addr), err
+}
+
+// CreateAt creates a new contract at the given address. This does not do
+// bookkeeping in the same way that Create does. In particular, it does not
+// increment the sender nonce, cost any gas, or enforce callstack limits.
+func (c *Chain) CreateAt(addr, sender *seth.Address, code []byte) error {
+	c.mu.Lock()
+
+	evm := c.evm(*sender)
+	snapshot := evm.StateDB.Snapshot()
+	evm.StateDB.CreateAccount(common.Address(*addr))
+	evm.StateDB.SetNonce(common.Address(*addr), 1)
+
+	contract := vm.NewContract(s2r(sender), s2r(addr), &zero, defaultGasLimit)
+	contract.Code = code
+	contract.CodeHash = crypto.Keccak256Hash(code)
+	contract.CodeAddr = (*common.Address)(addr)
+
+	ret, err := evm.Interpreter().Run(snapshot, contract, nil)
+	if err != nil {
+		evm.StateDB.RevertToSnapshot(snapshot)
+		c.mu.Unlock()
+		return err
+	}
+
+	evm.StateDB.SetCode(common.Address(*addr), ret)
+
+	c.mu.Unlock()
+
+	return nil
 }
 
 // Call executes a transaction that represents

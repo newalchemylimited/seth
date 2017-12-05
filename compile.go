@@ -371,11 +371,22 @@ func writeCache(name string, bundle *CompiledBundle) {
 	f.Close()
 }
 
+// Compile sources into a bundle with caching.
 func Compile(sources []Source) (*CompiledBundle, error) {
 	cn := cachename(sources)
 	if bundle, ok := cachedBundle(cn); ok {
 		return bundle, nil
 	}
+	b, err := compile(sources)
+	if err != nil {
+		return nil, err
+	}
+	writeCache(cn, b)
+	return b, nil
+}
+
+// compile sources without caching.
+func compile(sources []Source) (*CompiledBundle, error) {
 	cmd := exec.Command("solc", "--standard-json")
 	in, err := cmd.StdinPipe()
 	if err != nil {
@@ -428,7 +439,6 @@ func Compile(sources []Source) (*CompiledBundle, error) {
 	for i := range b.Sources {
 		b.Sources[i] = sources[i].Body
 	}
-	writeCache(cn, b)
 	return b, nil
 }
 
@@ -453,4 +463,12 @@ func CompileGlob(glob string) (*CompiledBundle, error) {
 		sources[i].Body = string(body)
 	}
 	return Compile(sources)
+}
+
+// CompileString compiles source code from a string.
+func CompileString(code string) (*CompiledBundle, error) {
+	return compile([]Source{{
+		Filename: "<stdin>",
+		Body:     code,
+	}})
 }
