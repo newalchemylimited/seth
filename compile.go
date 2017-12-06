@@ -32,6 +32,7 @@ type sourceblob struct {
 			Enabled bool `json:"enabled"`
 			Runs    int  `json:"runs"`
 		} `json:"optimizer"`
+		OutputSelection map[string]map[string][]string `json:"outputSelection"`
 	} `json:"settings"`
 	OutputSelection map[string]map[string][]string `json:"outputSelection"`
 }
@@ -397,6 +398,7 @@ func Compile(sources []Source) (*CompiledBundle, error) {
 	}
 	blob.Settings.Optimizer.Enabled = true
 	blob.Settings.Optimizer.Runs = 200
+	blob.Settings.OutputSelection = defaultOutput
 	blob.OutputSelection = defaultOutput
 	err = json.NewEncoder(in).Encode(&blob)
 	if err != nil {
