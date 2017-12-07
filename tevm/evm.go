@@ -121,7 +121,11 @@ type State struct {
 
 	Blocks Tree // key = n2h(blocknum) = hash, value = serialized block
 
-	Logs      []*types.Log
+	Logs []*types.Log
+	snapshots
+}
+
+type snapshots struct {
 	Snapshots []statesnap
 }
 
