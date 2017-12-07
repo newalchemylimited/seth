@@ -3,9 +3,12 @@ package tevm
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/newalchemylimited/seth"
 )
 
 func tracefn(t *testing.T) func(s string, args ...interface{}) {
@@ -108,4 +111,86 @@ func TestChainBasic(t *testing.T) {
 
 	please(t, c.BalanceOf(&me).Int64() == 0)
 	please(t, c.BalanceOf(&dumb).Int64() == 1e18)
+}
+
+// Test that a chain can be JSON marshaled and recovered.
+func TestChainSerialization(t *testing.T) {
+	chain := NewChain()
+
+	me := chain.NewAccount(1)
+	chain.Create(&me, []byte{0xf0, 0x00, 0xba, 0x40})
+	*chain.State.Pending.Number += 42
+	chain.Seal()
+
+	b, err := json.Marshal(chain.State)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state := new(State)
+
+	if err := json.Unmarshal(b, state); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(&chain.State, state) {
+		t.Fatal("chain state did not match:\n", &chain.State, "\n", state)
+	}
+}
+
+// Test that creating a contract at an address works.
+func TestCreateAt(t *testing.T) {
+	chain := NewChain()
+
+	me := chain.NewAccount(1)
+	addr, err := seth.ParseAddress("0x0123456789abcdef0123456789abcdef0123456")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundle, err := seth.CompileString(`
+		pragma solidity ^0.4.18;
+		contract Foo {
+			address public owner;
+			uint public a;
+			function Foo() public {
+				owner = msg.sender;
+				a = 100;
+			}
+			function b(uint x) returns (uint) {
+				require(msg.sender == owner);
+				return a + x;
+			}
+		}
+		contract Bad {
+			function Bad() public {
+				require(false);
+			}
+		}
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	code := bundle.Contract("Foo").Code
+
+	if err := chain.CreateAt(addr, &me, code); err != nil {
+		t.Fatal(err)
+	}
+
+	sender := chain.Sender(&me)
+	var out seth.Int
+	in := seth.NewInt(50)
+
+	if err := sender.ConstCall(addr, "b(uint256)", &out, in); err != nil {
+		t.Fatal(err)
+	} else if v := out.Int64(); v != 150 {
+		t.Fatal("expected 150, got", v)
+	}
+
+	// Make sure the throwing case works.
+	code = bundle.Contract("Bad").Code
+	if err := chain.CreateAt(addr, &me, code); err == nil {
+		t.Fatal("expected error, got nothing")
+	}
 }

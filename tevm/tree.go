@@ -9,73 +9,76 @@ import (
 // be snapshotted in constant time.
 //
 // The zero value of a Tree is the empty set.
-type Tree struct {
-	epoch   int32
-	root    int32 // index of root node
-	all     []treenode
-	snaps   []treesnap
-	touched bool
+type Tree tree
+
+// This is unexported to work with json.Marshal but not godoc.
+type tree struct {
+	Epoch   int32
+	Root    int32 // index of root node
+	All     []treenode
+	Snaps   []treesnap
+	Touched bool
 }
 
 type treesnap struct {
-	root      int32
-	allocated int32
+	Root      int32
+	Allocated int32
 }
 
 type treenode struct {
-	epoch       int32
-	left, right int32 // index+1 of left and right nodes
-	key, value  []byte
+	Epoch       int32
+	Left, Right int32 // index+1 of left and right nodes
+	Key, Value  []byte
 }
 
 func (t *Tree) new(key, value []byte, left, right int32) int32 {
-	t.all = append(t.all, treenode{
-		epoch: t.epoch,
-		key:   key,
-		value: value,
-		left:  left,
-		right: right,
+	t.All = append(t.All, treenode{
+		Epoch: t.Epoch,
+		Key:   key,
+		Value: value,
+		Left:  left,
+		Right: right,
 	})
-	return int32(len(t.all))
+	return int32(len(t.All))
 }
 
 // node numbers are 1-indexed so that the zero
 // value of a node contains no children
 func (t *Tree) num(i int32) *treenode {
-	return &t.all[i-1]
+	return &t.All[i-1]
 }
 
 func (t *Tree) setLeft(cur, left int32) int32 {
 	node := t.num(cur)
-	if node.left == left {
+	if node.Left == left {
 		return cur
 	}
-	if node.epoch < t.epoch {
-		return t.new(node.key, node.value, left, node.right)
+	if node.Epoch < t.Epoch {
+		return t.new(node.Key, node.Value, left, node.Right)
 	}
-	node.left = left
+	node.Left = left
 	return cur
 }
 
 func (t *Tree) setRight(cur, right int32) int32 {
 	node := t.num(cur)
-	if node.right == right {
+	if node.Right == right {
 		return cur
 	}
-	if node.epoch < t.epoch {
-		return t.new(node.key, node.value, node.left, right)
+	if node.Epoch < t.Epoch {
+		return t.new(node.Key, node.Value, node.Left, right)
 	}
-	node.right = right
+	node.Right = right
 	return cur
 }
 
 func (t *Tree) setPair(cur int32, key, value []byte) int32 {
 	node := t.num(cur)
-	if node.epoch < t.epoch {
-		return t.new(key, value, node.left, node.right)
+	if node.Epoch < t.Epoch {
+		return t.new(key, value, node.Left, node.Right)
 	}
-	node.key = key
-	node.value = value
+	node.Key = key
+	node.Value = value
 	return cur
 }
 
@@ -84,20 +87,20 @@ func (t *Tree) insertat(i int32, key, value []byte) int32 {
 		return t.new(key, value, 0, 0)
 	}
 	node := t.num(i)
-	switch bytes.Compare(node.key, key) {
+	switch bytes.Compare(node.Key, key) {
 	case 0:
 		return t.setPair(i, key, value)
 	case 1:
-		return t.setRight(i, t.insertat(node.right, key, value))
+		return t.setRight(i, t.insertat(node.Right, key, value))
 	case -1:
-		return t.setLeft(i, t.insertat(node.left, key, value))
+		return t.setLeft(i, t.insertat(node.Left, key, value))
 	}
 	panic("unreachable")
 }
 
 func (t *Tree) leftmost(n *treenode) *treenode {
-	for n.left != 0 {
-		n = t.num(n.left)
+	for n.Left != 0 {
+		n = t.num(n.Left)
 	}
 	return n
 }
@@ -107,53 +110,53 @@ func (t *Tree) deleteat(i int32, key []byte) int32 {
 		return 0
 	}
 	node := t.num(i)
-	switch bytes.Compare(node.key, key) {
+	switch bytes.Compare(node.Key, key) {
 	case 0:
-		t.touched = true
-		if node.left == 0 {
-			return node.right
+		t.Touched = true
+		if node.Left == 0 {
+			return node.Right
 		}
-		if node.right == 0 {
-			return node.left
+		if node.Right == 0 {
+			return node.Left
 		}
 		// we could maybe avoid an allocation of an
 		// inner node here, but it is such a pain that
 		// it's probably not worth it
-		min := t.leftmost(t.num(node.right))
-		return t.new(min.key, min.value, node.left, t.deleteat(node.right, min.key))
+		min := t.leftmost(t.num(node.Right))
+		return t.new(min.Key, min.Value, node.Left, t.deleteat(node.Right, min.Key))
 	case 1:
-		return t.setRight(i, t.deleteat(node.right, key))
+		return t.setRight(i, t.deleteat(node.Right, key))
 	case -1:
-		return t.setLeft(i, t.deleteat(node.left, key))
+		return t.setLeft(i, t.deleteat(node.Left, key))
 	}
 	panic("unreachable")
 }
 
 // Delete removes a value from the tree
 func (t *Tree) Delete(key []byte) bool {
-	t.root = t.deleteat(t.root, key)
-	touched := t.touched
-	t.touched = false
+	t.Root = t.deleteat(t.Root, key)
+	touched := t.Touched
+	t.Touched = false
 	return touched
 }
 
 // Insert inserts a key-value pair into the trie
 func (t *Tree) Insert(key, value []byte) {
-	t.root = t.insertat(t.root, key, value)
+	t.Root = t.insertat(t.Root, key, value)
 }
 
 // Get gets a value from the tree
 func (t *Tree) Get(key []byte) []byte {
-	i := t.root
+	i := t.Root
 	for i != 0 {
 		n := t.num(i)
-		switch bytes.Compare(n.key, key) {
+		switch bytes.Compare(n.Key, key) {
 		case 0:
-			return n.value
+			return n.Value
 		case 1:
-			i = n.right
+			i = n.Right
 		case -1:
-			i = n.left
+			i = n.Left
 		default:
 			panic("unreachable")
 		}
@@ -164,15 +167,15 @@ func (t *Tree) Get(key []byte) []byte {
 // Snapshot returns a snapshot number for the
 // current state of the tree
 func (t *Tree) Snapshot() int {
-	if t.root == 0 {
+	if t.Root == 0 {
 		return -1
 	}
-	s := len(t.snaps)
-	t.snaps = append(t.snaps, treesnap{
-		root:      t.root,
-		allocated: int32(len(t.all)),
+	s := len(t.Snaps)
+	t.Snaps = append(t.Snaps, treesnap{
+		Root:      t.Root,
+		Allocated: int32(len(t.All)),
 	})
-	t.epoch++
+	t.Epoch++
 	return s
 }
 
@@ -190,14 +193,14 @@ func (t *Tree) CopyAt(snap int) Tree {
 	if snap < 0 {
 		return Tree{}
 	}
-	s := t.snaps[snap]
+	s := t.Snaps[snap]
 	return Tree{
-		snaps: t.snaps[:snap+1],
-		root:  s.root,
+		Snaps: t.Snaps[:snap+1],
+		Root:  s.Root,
 		// make sure any appends to the node list
 		// cause reallocation of the backing data
-		all:   t.all[:s.allocated:s.allocated],
-		epoch: t.epoch + 1,
+		All:   t.All[:s.Allocated:s.Allocated],
+		Epoch: t.Epoch + 1,
 	}
 }
 
@@ -209,29 +212,29 @@ func (t *Tree) Rollback(snap int) {
 		*t = Tree{}
 		return
 	}
-	s := t.snaps[snap]
-	t.snaps = t.snaps[:snap+1]
-	t.root = s.root
-	t.all = t.all[:s.allocated]
-	t.epoch++
+	s := t.Snaps[snap]
+	t.Snaps = t.Snaps[:snap+1]
+	t.Root = s.Root
+	t.All = t.All[:s.Allocated]
+	t.Epoch++
 }
 
 func (t *Tree) apply(node *treenode, fn func(k, v []byte) bool) bool {
-	if node.left != 0 && !t.apply(t.num(node.left), fn) {
+	if node.Left != 0 && !t.apply(t.num(node.Left), fn) {
 		return false
 	}
-	if !fn(node.key, node.value) {
+	if !fn(node.Key, node.Value) {
 		return false
 	}
-	if node.right != 0 {
-		return t.apply(t.num(node.right), fn)
+	if node.Right != 0 {
+		return t.apply(t.num(node.Right), fn)
 	}
 	return true
 }
 
 // Iterate iterates the key-value space in sorted order
 func (t *Tree) Iterate(fn func(k, v []byte) bool) {
-	if t.root != 0 {
-		t.apply(t.num(t.root), fn)
+	if t.Root != 0 {
+		t.apply(t.num(t.Root), fn)
 	}
 }

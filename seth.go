@@ -175,7 +175,7 @@ func (i *Int) String() string {
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (i *Int) MarshalText() ([]byte, error) {
+func (i Int) MarshalText() ([]byte, error) {
 	return hexstring(i.Big().Bytes(), true), nil
 }
 
@@ -338,15 +338,15 @@ func (h *Hash) Scan(s fmt.ScanState, verb rune) error {
 
 // Block represents and Ethereum block
 type Block struct {
-	Number          *Uint64           `json:"number"`     // block number, or nil if peding
+	Number          *Uint64           `json:"number"`     // block number, or nil if pending
 	Hash            *Hash             `json:"hash"`       // block hash, or nil if pending
 	Parent          Hash              `json:"parentHash"` // parent block hash
 	Nonce           Uint64            `json:"nonce"`
-	UncleHash       Hash              `json:"sha3Uncles"`       // hash of uncles in block
-	Bloom           Data              `json:"logsBloom"`        // bloom filter of logs, or nil if pending
-	TxRoot          Hash              `json:"transactionsRoot"` // root of transaction trie of block
-	StateRoot       Hash              `json:"stateRoot"`        // root of final state trie of block
-	ReceiptsRoot    Hash              `json:"receiptsRoot"`     // root of receipts trie of block
+	UncleHash       Hash              `json:"sha3Uncles"`          // hash of uncles in block
+	Bloom           Data              `json:"logsBloom,omitempty"` // bloom filter of logs, or nil if pending
+	TxRoot          Hash              `json:"transactionsRoot"`    // root of transaction trie of block
+	StateRoot       Hash              `json:"stateRoot"`           // root of final state trie of block
+	ReceiptsRoot    Hash              `json:"receiptsRoot"`        // root of receipts trie of block
 	Miner           Address           `json:"miner"`
 	GasLimit        Uint64            `json:"gasLimit"`
 	GasUsed         Uint64            `json:"gasUsed"`
@@ -355,7 +355,7 @@ type Block struct {
 	Difficulty      *Int              `json:"difficulty"`
 	TotalDifficulty *Int              `json:"totalDifficulty"`
 	Timestamp       Uint64            `json:"timestamp"`
-	Extra           Data              `json:"extraData"`
+	Extra           Data              `json:"extraData,omitempty"`
 }
 
 // Time turns the block timestamp into a time.Time
