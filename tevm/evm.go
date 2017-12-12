@@ -829,3 +829,30 @@ func (c *Chain) Seal() {
 		Timestamp:       seth.Uint64(time.Now().Unix()),
 	}
 }
+
+// MarshalJSON implements json.Marshaler.
+func (c *Chain) MarshalJSON() ([]byte, error) {
+	c.mu.Lock()
+	b, err := json.Marshal(&struct {
+		State      State
+		Block2snap map[int64]int
+	}{c.State, c.block2snap})
+	c.mu.Unlock()
+	return b, err
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (c *Chain) UnmarshalJSON(b []byte) error {
+	var s struct {
+		State      State
+		Block2snap map[int64]int
+	}
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.State = s.State
+	c.block2snap = s.Block2snap
+	c.mu.Unlock()
+	return nil
+}
