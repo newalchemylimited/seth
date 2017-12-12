@@ -122,19 +122,19 @@ func TestChainSerialization(t *testing.T) {
 	*chain.State.Pending.Number += 42
 	chain.Seal()
 
-	b, err := json.Marshal(chain.State)
+	b, err := json.Marshal(chain)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	state := new(State)
+	chain2 := new(Chain)
 
-	if err := json.Unmarshal(b, state); err != nil {
+	if err := json.Unmarshal(b, chain2); err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(&chain.State, state) {
-		t.Fatal("chain state did not match:\n", &chain.State, "\n", state)
+	if !reflect.DeepEqual(chain, chain2) {
+		t.Fatal("chain state did not match:\n", chain, "\n", chain2)
 	}
 }
 
