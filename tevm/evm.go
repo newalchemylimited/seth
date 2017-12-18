@@ -632,12 +632,11 @@ func (c *Chain) Create(sender *seth.Address, code []byte) (seth.Address, error) 
 
 // CreateAt creates a new contract at the given address. This does not do
 // bookkeeping in the same way that Create does. In particular, it does not
-// increment the sender nonce, cost any gas, or enforce callstack limits.
+// increment the sender nonce or enforce callstack limits.
 func (c *Chain) CreateAt(addr, sender *seth.Address, code []byte) error {
 	c.mu.Lock()
 
 	evm := c.evm(*sender)
-	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(common.Address(*addr))
 	evm.StateDB.SetNonce(common.Address(*addr), 1)
 
@@ -646,9 +645,8 @@ func (c *Chain) CreateAt(addr, sender *seth.Address, code []byte) error {
 	contract.CodeHash = crypto.Keccak256Hash(code)
 	contract.CodeAddr = (*common.Address)(addr)
 
-	ret, err := evm.Interpreter().Run(snapshot, contract, nil)
+	ret, err := evm.Interpreter().Run(contract, nil)
 	if err != nil {
-		evm.StateDB.RevertToSnapshot(snapshot)
 		c.mu.Unlock()
 		return err
 	}
