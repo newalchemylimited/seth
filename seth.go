@@ -93,6 +93,29 @@ func (d *Data) UnmarshalText(b []byte) error {
 	return nil
 }
 
+// Bytes is just binary that can decode Ethereum's silly quoted hex
+type Bytes []byte
+
+func (b *Bytes) String() string {
+	if b == nil {
+		return "<nil>"
+	}
+	return string(hexstring(*b, false))
+}
+
+func (b Bytes) MarshalText() ([]byte, error) {
+	return hexstring(b, false), nil
+}
+
+func (b *Bytes) UnmarshalText(bx []byte) error {
+	s, err := hexparse(bx)
+	if err != nil {
+		return err
+	}
+	*b = s
+	return nil
+}
+
 // Int is a big.Int that can decode Ethereum's silly quoted hex
 type Int big.Int
 

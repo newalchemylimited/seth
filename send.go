@@ -64,10 +64,34 @@ func (d *Data) EncodeABI(v []byte) []byte {
 
 func (d *Data) internal() {}
 
+// EncodeABI implements EtherType.EncodeABI
+func (b *Bytes) EncodeABI(v []byte) []byte {
+	return append(v, padright(*b)...)
+}
+
+// Len implements EtherSlice.Len
+func (b *Bytes) Len() int  { return len(*b) }
+func (b *Bytes) internal() {}
+
 func padint(i int, v []byte) []byte {
 	var w [32]byte
 	binary.BigEndian.PutUint64(w[32-8:], uint64(i))
 	return append(v, w[:]...)
+}
+
+func padright(b []byte) []byte {
+	mod := len(b) % 32
+	var padding int
+	if mod > 0 {
+		padding = 32 - mod
+	} else {
+		padding = 0
+	}
+
+	result := make([]byte, len(b)+padding)
+	copy(result, b)
+
+	return result
 }
 
 // IntSlice is an implementation of EtherSlice
@@ -100,6 +124,18 @@ func (a *AddrSlice) EncodeABI(v []byte) []byte {
 // Len implements EtherSlice.Len
 func (a *AddrSlice) Len() int  { return len(*a) }
 func (a *AddrSlice) internal() {}
+
+type DataSlice []Data
+
+func (d *DataSlice) EncodeABI(v []byte) []byte {
+	for j := range *d {
+		v = (*d)[j].EncodeABI(v)
+	}
+	return v
+}
+
+func (d *DataSlice) Len() int  { return len(*d) }
+func (d *DataSlice) internal() {}
 
 // CallOpts describes a transaction (contract call).
 type CallOpts struct {
@@ -283,6 +319,7 @@ func (d *ABIDecoder) UnmarshalText(v []byte) error {
 //  - address -> seth.Address
 //  - uint256[] -> seth.IntSlice
 //  - address[] -> seth.AddrSlice
+//  - bytes32[] -> seth.DataSlice
 //  - bytes -> []byte
 //
 func DecodeABI(v []byte, args ...interface{}) error {
@@ -376,6 +413,23 @@ func DecodeABI(v []byte, args ...interface{}) error {
 				copy(s[i][:], cur[o+12:o+32])
 			}
 			*v = AddrSlice(s)
+		case *DataSlice:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+(length*32) >= int64(len(cur)) {
+				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			}
+			s := make([]Data, length)
+			for i := range s {
+				o := int(dpos) + i*32
+				copy(s[i][:], cur[o+12:o+32])
+			}
+			*v = DataSlice(s)
 		case *bool:
 			*v = spare.Sign() != 0
 		case *uint8:
