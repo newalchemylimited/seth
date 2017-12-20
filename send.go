@@ -80,18 +80,10 @@ func padint(i int, v []byte) []byte {
 }
 
 func padright(b []byte) []byte {
-	mod := len(b) % 32
-	var padding int
-	if mod > 0 {
-		padding = 32 - mod
-	} else {
-		padding = 0
-	}
+	p := make([]byte, (len(b)+31)&-32)
+	copy(p, b)
 
-	result := make([]byte, len(b)+padding)
-	copy(result, b)
-
-	return result
+	return p
 }
 
 // IntSlice is an implementation of EtherSlice
@@ -320,7 +312,7 @@ func (d *ABIDecoder) UnmarshalText(v []byte) error {
 //  - uint256[] -> seth.IntSlice
 //  - address[] -> seth.AddrSlice
 //  - bytes32[] -> seth.DataSlice
-//  - bytes -> []byte
+//  - bytes -> []byte or seth.Bytes
 //
 func DecodeABI(v []byte, args ...interface{}) error {
 	var spare big.Int
@@ -367,6 +359,19 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			}
 			*v = string(cur[dpos : dpos+length])
 		case *[]byte:
+			doff := spare.Int64()
+			if doff >= int64(len(cur)-32) {
+				fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
+			}
+			spare.SetBytes(cur[doff : doff+32])
+			length := spare.Int64()
+			dpos := doff + 32
+			if dpos+length >= int64(len(cur)) {
+				fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
+			}
+			*v = make([]byte, length)
+			copy(*v, cur[dpos:dpos+length])
+		case *Bytes:
 			doff := spare.Int64()
 			if doff >= int64(len(cur)-32) {
 				fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))

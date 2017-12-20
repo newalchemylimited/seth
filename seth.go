@@ -93,7 +93,7 @@ func (d *Data) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// Bytes is just binary that can decode Ethereum's silly quoted hex
+// Bytes is like Data, but can be be greater than 32 bytes in length
 type Bytes []byte
 
 func (b *Bytes) String() string {
