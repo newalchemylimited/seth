@@ -125,7 +125,6 @@ func TestArgumentEncoding4(t *testing.T) {
 	c.EncodeCall("foo(bytes)", &txdata)
 	b, _ := json.Marshal(c.Data)
 	if string(b) != want {
-		// t.Errorf("wanted %q\ngot%q", want, b)
-		t.Errorf("wrong! wanted/got\n%q\n%q", want, b)
+		t.Errorf("wanted %q\ngot%q", want, b)
 	}
 }
