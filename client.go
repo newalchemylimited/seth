@@ -49,7 +49,7 @@ func (c *Client) do(method string, params []json.RawMessage, res interface{}) er
 func (c *Client) background(conn io.ReadWriteCloser) {
 	dec := json.NewDecoder(conn)
 	for {
-		c.res = response{}
+		c.res = RPCResponse{}
 		err := dec.Decode(&c.res)
 		if err != nil {
 			log.Printf("seth: conn read: %s", err)
@@ -128,7 +128,7 @@ type HTTPTransport struct {
 
 func (t *HTTPTransport) Execute(method string, params []json.RawMessage, res interface{}) error {
 	t.lock.Lock()
-	req := &request{
+	req := &RPCRequest{
 		Version: "2.0",
 		Method:  method,
 		Params:  params,
@@ -142,7 +142,7 @@ func (t *HTTPTransport) Execute(method string, params []json.RawMessage, res int
 	t.id++
 	t.lock.Unlock()
 
-	tres := new(response)
+	tres := new(RPCResponse)
 	hres, err := http.Post(t.URL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err

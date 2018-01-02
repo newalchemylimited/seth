@@ -50,8 +50,8 @@ type Client struct {
 	conn    io.ReadWriteCloser
 	enc     *json.Encoder // wraps send side of conn
 	pending map[int]*pending
-	req     request
-	res     response
+	req     RPCRequest
+	res     RPCResponse
 	nextid  int
 	dial    func() (io.ReadWriteCloser, error)
 }
@@ -415,7 +415,8 @@ type Transaction struct {
 	Input       Data     `json:"input"`            // input data
 }
 
-type request struct {
+// RPCRequest is a request to be sent to an RPC server.
+type RPCRequest struct {
 	Version string            `json:"jsonrpc"`
 	Method  string            `json:"method"`
 	Params  []json.RawMessage `json:"params"`
@@ -433,7 +434,8 @@ func (e *RPCError) Error() string {
 	return fmt.Sprintf("%s (code %d) %s", e.Message, e.Code, e.Data)
 }
 
-type response struct {
+// RPCResponse is a response returned by an RPC server.
+type RPCResponse struct {
 	ID      int             `json:"id"`
 	Version string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result"`

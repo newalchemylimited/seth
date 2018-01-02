@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
+	"net/http"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -60,6 +62,43 @@ func (b *blocknum) UnmarshalJSON(buf []byte) error {
 
 func (a *callArgs) Ref() vm.ContractRef {
 	return (*acctref)(&a.From)
+}
+
+func (s *Chain) rpc(req *seth.RPCRequest, res *seth.RPCResponse) {
+	res.ID = req.ID
+	res.Version = req.Version
+	var resbody json.RawMessage
+	s.mu.Lock()
+	err := s.Execute(req.Method, req.Params, &resbody)
+	s.mu.Unlock()
+	if err != nil {
+		res.Result = nil
+		res.Error.Code = -1 // FIXME
+		res.Error.Message = err.Error()
+		res.Error.Data = nil
+		return
+	}
+	res.Result = resbody
+}
+
+// ServeHTTP implements http.Handler.
+func (s *Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var jsr seth.RPCRequest
+	err := json.NewDecoder(r.Body).Decode(&jsr)
+	if err != nil {
+		log.Printf("decode body error: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+	var res seth.RPCResponse
+	s.rpc(&jsr, &res)
+	err = json.NewEncoder(w).Encode(&res)
+	if err != nil {
+		log.Printf("error writing response: %s", err)
+		w.WriteHeader(500)
+		return
+	}
 }
 
 // Execute implements seth.Transport.
