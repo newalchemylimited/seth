@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
+	"net/http"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,20 +64,48 @@ func (a *callArgs) Ref() vm.ContractRef {
 	return (*acctref)(&a.From)
 }
 
-// Execute implements seth.Transport.
-func (c *Chain) Execute(method string, params []json.RawMessage, res interface{}) error {
-	c.mu.Lock()
-	if len(params) == 0 {
-		c.mu.Unlock()
-		return errors.New(method + ": not enough params")
+// ServeHTTP implements http.Handler.
+func (s *Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var jsr seth.RPCRequest
+	err := json.NewDecoder(r.Body).Decode(&jsr)
+	if err != nil {
+		log.Printf("decode body error: %s", err)
+		w.WriteHeader(401)
+		return
 	}
-	ret, err := c.execute(method, params)
+	var res seth.RPCResponse
+	s.Execute(&jsr, &res)
+	err = json.NewEncoder(w).Encode(&res)
+	if err != nil {
+		log.Printf("error writing response: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+}
+
+// Execute implements seth.Transport.
+func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
+	res.ID = req.ID
+	res.Version = req.Version
+
+	if len(req.Params) == 0 {
+		return errors.New(req.Method + ": not enough params")
+	}
+
+	c.mu.Lock()
+	ret, err := c.execute(req.Method, req.Params)
 	if err != nil {
 		c.mu.Unlock()
-		return err
+		res.Result = nil
+		res.Error.Code = -1 // FIXME
+		res.Error.Message = err.Error()
+		res.Error.Data = nil
+		return nil
 	}
 	c.mu.Unlock()
-	return gross(ret, res)
+
+	return gross(ret, &res.Result)
 }
 
 func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, error) {
