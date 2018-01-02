@@ -234,14 +234,14 @@ func (c *CallOpts) EncodeCall(fn string, args ...EtherType) {
 // Call makes a transaction call using the given CallOpts.
 func (c *Client) Call(opts *CallOpts) (tx Hash, err error) {
 	buf, _ := json.Marshal(opts)
-	err = c.do("eth_sendTransaction", []json.RawMessage{buf}, &tx)
+	err = c.Do("eth_sendTransaction", []json.RawMessage{buf}, &tx)
 	return
 }
 
 // EstimateGas estimates the gas cost of mining this call into the blockchain.
 func (c *Client) EstimateGas(opts *CallOpts) (gas Int, err error) {
 	buf, _ := json.Marshal(opts)
-	err = c.do("eth_estimateGas", []json.RawMessage{buf, rawpending}, &gas)
+	err = c.Do("eth_estimateGas", []json.RawMessage{buf, rawpending}, &gas)
 	return
 }
 
@@ -255,7 +255,7 @@ func (c *Client) ConstCall(opts *CallOpts, out interface{}, pending bool) error 
 	if pending {
 		args[1] = rawpending
 	}
-	return c.do("eth_call", args, out)
+	return c.Do("eth_call", args, out)
 }
 
 // StorageAt reads contract storage from a contract at a particular 256-bit address.
@@ -272,7 +272,7 @@ func (c *Client) StorageAt(addr *Address, offset *Hash, block int64) (Hash, erro
 		buf3, _ = json.Marshal(block)
 	}
 	var out Hash
-	err := c.do("eth_getStorageAt", []json.RawMessage{buf, buf2, buf3}, &out)
+	err := c.Do("eth_getStorageAt", []json.RawMessage{buf, buf2, buf3}, &out)
 	return out, err
 }
 

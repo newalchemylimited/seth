@@ -9,7 +9,6 @@ import (
 	"log"
 	"math/big"
 	"reflect"
-	"sync"
 	"time"
 	"unsafe"
 
@@ -41,25 +40,20 @@ var (
 )
 
 type Transport interface {
-	Execute(method string, params []json.RawMessage, res interface{}) error
+	Execute(req *RPCRequest, res *RPCResponse) error
 }
 
 type Client struct {
-	tport   Transport
-	lock    sync.Mutex
-	conn    io.ReadWriteCloser
-	enc     *json.Encoder // wraps send side of conn
-	pending map[int]*pending
-	req     RPCRequest
-	res     RPCResponse
-	nextid  int
-	dial    func() (io.ReadWriteCloser, error)
+	tport  Transport
+	nextid uintptr
 }
 
-func (c *Client) id() int { c.nextid++; return c.nextid }
-
 func NewClient(dial func() (io.ReadWriteCloser, error)) *Client {
-	return &Client{dial: dial, pending: make(map[int]*pending)}
+	tp := &RPCTransport{
+		dial:    dial,
+		pending: make(map[int]*pending),
+	}
+	return NewClientTransport(tp)
 }
 
 func NewHTTPClient(url string) *Client {
@@ -496,7 +490,7 @@ func (c *Client) GetBlock(num int64, txs bool) (*Block, error) {
 func (c *Client) GetTransaction(h *Hash) (*Transaction, error) {
 	buf, _ := json.Marshal(h)
 	o := new(Transaction)
-	err := c.do("eth_getTransactionByHash", []json.RawMessage{buf}, o)
+	err := c.Do("eth_getTransactionByHash", []json.RawMessage{buf}, o)
 	if err != nil {
 		return nil, err
 	}

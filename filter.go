@@ -102,20 +102,20 @@ done:
 func (c *Client) getLogs(id int64) ([]Log, error) {
 	var o []Log
 	p := []json.RawMessage{itox(id)}
-	err := c.do("eth_getFilterLogs", p, &o)
+	err := c.Do("eth_getFilterLogs", p, &o)
 	return o, err
 }
 
 func (c *Client) getUpdates(id int64) ([]Log, error) {
 	var o []Log
 	p := []json.RawMessage{itox(id)}
-	err := c.do("eth_getFilterChanges", p, &o)
+	err := c.Do("eth_getFilterChanges", p, &o)
 	return o, err
 }
 
 func (c *Client) deleteFilter(id int64) {
 	var out bool
-	err := c.do("eth_uninstallFilter", []json.RawMessage{itox(id)}, &out)
+	err := c.Do("eth_uninstallFilter", []json.RawMessage{itox(id)}, &out)
 	if err != nil || !out {
 		log.Printf("uninstallFilter: %s %v", err)
 	}
@@ -159,7 +159,7 @@ func (c *Client) FilterTopics(topics []*Hash, addr *Address, start, end int64) (
 		return nil, err
 	}
 	var out Int
-	err = c.do("eth_newFilter", []json.RawMessage{buf}, &out)
+	err = c.Do("eth_newFilter", []json.RawMessage{buf}, &out)
 	if err != nil {
 		return nil, err
 	}

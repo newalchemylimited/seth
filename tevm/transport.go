@@ -64,21 +64,6 @@ func (a *callArgs) Ref() vm.ContractRef {
 	return (*acctref)(&a.From)
 }
 
-func (s *Chain) rpc(req *seth.RPCRequest, res *seth.RPCResponse) {
-	res.ID = req.ID
-	res.Version = req.Version
-	var resbody json.RawMessage
-	err := s.Execute(req.Method, req.Params, &resbody)
-	if err != nil {
-		res.Result = nil
-		res.Error.Code = -1 // FIXME
-		res.Error.Message = err.Error()
-		res.Error.Data = nil
-		return
-	}
-	res.Result = resbody
-}
-
 // ServeHTTP implements http.Handler.
 func (s *Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -90,7 +75,7 @@ func (s *Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var res seth.RPCResponse
-	s.rpc(&jsr, &res)
+	s.Execute(&jsr, &res)
 	err = json.NewEncoder(w).Encode(&res)
 	if err != nil {
 		log.Printf("error writing response: %s", err)
@@ -100,19 +85,27 @@ func (s *Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Execute implements seth.Transport.
-func (c *Chain) Execute(method string, params []json.RawMessage, res interface{}) error {
-	c.mu.Lock()
-	if len(params) == 0 {
-		c.mu.Unlock()
-		return errors.New(method + ": not enough params")
+func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
+	res.ID = req.ID
+	res.Version = req.Version
+
+	if len(req.Params) == 0 {
+		return errors.New(req.Method + ": not enough params")
 	}
-	ret, err := c.execute(method, params)
+
+	c.mu.Lock()
+	ret, err := c.execute(req.Method, req.Params)
 	if err != nil {
 		c.mu.Unlock()
-		return err
+		res.Result = nil
+		res.Error.Code = -1 // FIXME
+		res.Error.Message = err.Error()
+		res.Error.Data = nil
+		return nil
 	}
 	c.mu.Unlock()
-	return gross(ret, res)
+
+	return gross(ret, &res.Result)
 }
 
 func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, error) {
