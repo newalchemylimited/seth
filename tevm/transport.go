@@ -68,9 +68,7 @@ func (s *Chain) rpc(req *seth.RPCRequest, res *seth.RPCResponse) {
 	res.ID = req.ID
 	res.Version = req.Version
 	var resbody json.RawMessage
-	s.mu.Lock()
 	err := s.Execute(req.Method, req.Params, &resbody)
-	s.mu.Unlock()
 	if err != nil {
 		res.Result = nil
 		res.Error.Code = -1 // FIXME
