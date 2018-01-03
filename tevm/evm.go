@@ -106,7 +106,7 @@ func (a *AccountTree) SetAccount(addr *seth.Address, acct *Account) {
 
 // State database for the EVM.
 type State struct {
-	Refund seth.Int
+	Refund seth.Uint64
 	Trace  func(fn string, args ...interface{}) `json:"-"`
 
 	Pending *seth.Block
@@ -139,7 +139,7 @@ func (s *State) StateDB() vm.StateDB {
 type gethState State
 
 type statesnap struct {
-	Refund   seth.Int
+	Refund   seth.Uint64
 	Accounts int
 	Code     int
 	State    int
@@ -249,13 +249,12 @@ func (s *gethState) GetCodeSize(addr common.Address) int {
 	return len(s.GetCode(addr))
 }
 
-func (s *gethState) AddRefund(v *big.Int) {
-	b := (*big.Int)(&s.Refund)
-	b.Add(b, v)
+func (s *gethState) AddRefund(v uint64) {
+	s.Refund += seth.Uint64(v)
 }
 
-func (s *gethState) GetRefund() *big.Int {
-	return (*big.Int)(&s.Refund)
+func (s *gethState) GetRefund() uint64 {
+	return uint64(s.Refund)
 }
 
 func stateKey(addr *common.Address, hash *common.Hash) seth.Hash {
@@ -341,7 +340,7 @@ func (s *gethState) RevertToSnapshot(v int) {
 		panic("no such snapshot")
 	}
 	ns := snaps[v]
-	s.Refund = ns.Refund.Copy()
+	s.Refund = ns.Refund
 	s.Accounts.Rollback(ns.Accounts)
 	s.Code.Rollback(ns.Code)
 	s.Storage.Rollback(ns.State)
@@ -358,7 +357,7 @@ func (s *gethState) Snapshot() int {
 		s.Trace("Snapshot")
 	}
 	snap := statesnap{
-		Refund:   s.Refund.Copy(),
+		Refund:   s.Refund,
 		Accounts: s.Accounts.Snapshot(),
 		Code:     s.Code.Snapshot(),
 		State:    s.Storage.Snapshot(),
@@ -378,7 +377,7 @@ func (s *State) atSnap(n int, dst *State) {
 	}
 	ns := s.Snapshots[n]
 	dst.Trace = s.Trace
-	dst.Refund = s.Refund.Copy()
+	dst.Refund = s.Refund
 	dst.Accounts = AccountTree{s.Accounts.CopyAt(ns.Accounts)}
 	dst.Code = CodeTree{s.Code.CopyAt(ns.Code)}
 	dst.Storage = s.Storage.CopyAt(ns.State)
@@ -599,7 +598,7 @@ func (c *Chain) context(sender [20]byte) vm.Context {
 		GetHash:     n2h,
 		Origin:      common.Address(sender),
 		Coinbase:    common.Address(b.Miner),
-		GasLimit:    new(big.Int).SetInt64(int64(b.GasLimit)),
+		GasLimit:    uint64(b.GasLimit),
 		BlockNumber: new(big.Int).SetInt64(int64(*b.Number)),
 		Time:        new(big.Int).SetInt64(int64(b.Timestamp)),
 		Difficulty:  new(big.Int).Set((*big.Int)(b.Difficulty)),
