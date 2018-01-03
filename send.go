@@ -199,23 +199,18 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 	fhash := HashString(fn)
 	copy(buf[:4], fhash[:4])
 
-	var dyn []EtherSlice
+	var dyn []byte
 	dynoff := len(args) * 32
 	for _, a := range args {
 		if es, ok := a.(EtherSlice); ok {
-			// just encode the dynamic argument offset
-			buf = padint(dynoff, buf)
-			dyn = append(dyn, es)
-			dynoff += 32 + 32*es.Len()
+			buf = padint(dynoff+len(dyn), buf)
+			dyn = padint(es.Len(), dyn)
+			dyn = a.EncodeABI(dyn)
 			continue
 		}
 		buf = a.EncodeABI(buf)
 	}
-	for i := range dyn {
-		buf = padint(dyn[i].Len(), buf)
-		buf = dyn[i].EncodeABI(buf)
-	}
-	return buf
+	return append(buf, dyn...)
 }
 
 // EncodeCall sets up c.Data so that it reflects
