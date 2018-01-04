@@ -678,6 +678,14 @@ func (c *Chain) StaticCall(sender, dst *seth.Address, sig string, args ...seth.E
 	return ret, err
 }
 
+// EstimateGas estimates the amount of gas that the given transaction will use.
+func (c *Chain) EstimateGas(sender, dst *seth.Address, sig string, args ...seth.EtherType) (uint64, error) {
+	c.mu.Lock()
+	_, left, err := c.evm(*sender).StaticCall(s2r(sender), common.Address(*dst), seth.ABIEncode(sig, args...), defaultGasLimit)
+	c.mu.Unlock()
+	return defaultGasLimit - left, err
+}
+
 // Send creates a transaction that sends ether from one address to another.
 func (c *Chain) Send(sender, dst *seth.Address, value *big.Int) error {
 	c.mu.Lock()

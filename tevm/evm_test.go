@@ -182,6 +182,15 @@ func TestCreateAt(t *testing.T) {
 	var out seth.Int
 	in := seth.NewInt(50)
 
+	if gas, err := chain.EstimateGas(&me, addr, "b(uint256)", &out, in); err != nil {
+		t.Fatal(err)
+	} else {
+		if gas > 6000000 {
+			t.Errorf("strange gas value: %d", gas)
+		}
+		t.Logf("call uses %d gas", gas)
+	}
+
 	if err := sender.ConstCall(addr, "b(uint256)", &out, in); err != nil {
 		t.Fatal(err)
 	} else if v := out.Int64(); v != 150 {
