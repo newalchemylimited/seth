@@ -16,7 +16,7 @@ var ErrNotFound = errors.New("seth: not found")
 // represent a pending rpc request
 type pending struct {
 	notify chan struct{}
-	res    interface{}
+	res    *RPCResponse
 	err    error
 }
 
@@ -62,7 +62,7 @@ func (t *RPCTransport) background(conn io.ReadWriteCloser) {
 		} else if bytes.Equal(t.res.Result, rawnull) {
 			p.err = ErrNotFound
 		} else {
-			p.err = json.Unmarshal(t.res.Result, p.res)
+			*p.res = t.res
 		}
 		close(p.notify)
 	}
