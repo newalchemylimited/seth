@@ -1,6 +1,7 @@
 package seth
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -94,6 +95,24 @@ func (s *Sender) Send(to *Address, method string, args ...EtherType) (Hash, erro
 		return Hash{}, err
 	}
 	opts.Gas = s.pad(&gas)
+	return s.Call(&opts)
+}
+
+// Cancel a transaction with the given hash.
+func (s *Sender) Cancel(h *Hash) (Hash, error) {
+	tx, err := s.GetTransaction(h)
+	if err != nil {
+		return Hash{}, err
+	} else if tx.TxIndex != nil {
+		return Hash{}, errors.New("seth: cannot cancel")
+	}
+	price := NewInt(tx.GasPrice.Int64() + 1)
+	opts := CallOpts{To: s.Addr, From: s.Addr, GasPrice: price, Nonce: tx.Nonce}
+	gas, err := s.EstimateGas(&opts)
+	if err != nil {
+		return Hash{}, err
+	}
+	opts.Gas = &gas
 	return s.Call(&opts)
 }
 
