@@ -642,6 +642,17 @@ func (c *Client) GetReceipt(tx *Hash) (*Receipt, error) {
 	return out, nil
 }
 
+// GetNonce gets the nonce of the given address in the pending block.
+func (c *Client) GetNonce(addr *Address) (int64, error) {
+	buf, _ := json.Marshal(addr)
+	out := Uint64(0)
+	err := c.Do("eth_getTransactionCount", []json.RawMessage{buf, rawpending}, &out)
+	if err != nil {
+		return 0, err
+	}
+	return int64(out), nil
+}
+
 // Log is an Ethereum log (or, in Solidity, an "event")
 type Log struct {
 	Removed     bool    `json:"removed"`
