@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"sync/atomic"
 )
@@ -154,8 +155,57 @@ func (t *HTTPTransport) Execute(req *RPCRequest, res *RPCResponse) error {
 	hres, err := http.Post(t.URL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err
-	} else if hres.StatusCode != http.StatusOK {
+	}
+	defer hres.Body.Close()
+	if hres.StatusCode != http.StatusOK {
 		return errors.New("http error: " + hres.Status)
 	}
 	return json.NewDecoder(hres.Body).Decode(res)
+}
+
+// InfuraTransport is a transport that operates on
+// https://api.infura.io/v1/jsonrpc/mainnet
+type InfuraTransport struct{}
+
+func infuraPost(req *RPCRequest, res *RPCResponse) error {
+	// The infura POST case looks exactly
+	// like the regular JSON-RPC API...
+	t := HTTPTransport{URL: "https://api.infura.io/v1/jsonrpc/mainnet"}
+	return t.Execute(req, res)
+}
+
+func infuraGet(req *RPCRequest, res *RPCResponse) error {
+	infura := "https://api.infura.io/v1/jsonrpc/mainnet/" + req.Method
+
+	reqbody, err := json.Marshal(req.Params)
+	if err != nil {
+		return err
+	}
+
+	// TODO: not this. This is gross.
+	query := make(url.Values)
+	query.Add("params", string(reqbody))
+	infura += "?" + query.Encode()
+
+	hres, err := http.Get(infura)
+	if err != nil {
+		return err
+	}
+	defer hres.Body.Close()
+	if hres.StatusCode != http.StatusOK {
+		return errors.New("http error: " + hres.Status)
+	}
+	return json.NewDecoder(hres.Body).Decode(res)
+}
+
+func (i InfuraTransport) Execute(req *RPCRequest, res *RPCResponse) error {
+	switch req.Method {
+	case "eth_sendRawTransaction",
+		"eth_estimateGas",
+		"eth_submitWork",
+		"eth_submitHashrate":
+		return infuraPost(req, res)
+	default:
+		return infuraGet(req, res)
+	}
 }

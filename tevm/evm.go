@@ -106,6 +106,15 @@ func (a *AccountTree) SetAccount(addr *seth.Address, acct *Account) {
 
 // State database for the EVM.
 type State struct {
+	// Fallback is used when a lookup for data on an account
+	// fails for in-memory state. Fallback always reads state
+	// from a specific block number, and local modifications
+	// always take precedence over fallback state.
+	Fallback struct {
+		*seth.Client
+		Block int64
+	}
+
 	Refund seth.Uint64
 	Trace  func(fn string, args ...interface{}) `json:"-"`
 
@@ -157,12 +166,46 @@ func (s *gethState) CreateAccount(addr common.Address) {
 	s.Accounts.SetAccount(&a, &empty)
 }
 
+func (s *gethState) fallbackAcct(addr *seth.Address) (Account, bool) {
+	if s.Trace != nil {
+		s.Trace("Fallback GetAccount", addr.String())
+	}
+
+	var ret Account
+	c := s.Fallback.Client
+	bal, err := c.GetBalanceAt(addr, s.Fallback.Block)
+	if err != nil {
+		panic("fallback GetBalance: " + err.Error())
+	}
+	ret.SetBalance((*big.Int)(&bal))
+	nonce, err := c.GetNonceAt(addr, s.Fallback.Block)
+	if err != nil {
+		panic("fallback GetNonce: " + err.Error())
+	}
+	if nonce == 0 && bal.IsZero() {
+		return Account{}, false
+	}
+
+	ret.SetNonce(uint64(nonce))
+	s.Accounts.SetAccount(addr, &ret)
+	// TODO: ret.Suicided()?
+	return ret, true
+}
+
+func (s *gethState) getAccount(addr *seth.Address) (Account, bool) {
+	acct, ok := s.Accounts.GetAccount(addr)
+	if !ok && s.Fallback.Client != nil {
+		return s.fallbackAcct(addr)
+	}
+	return acct, ok
+}
+
 func (s *gethState) SubBalance(addr common.Address, v *big.Int) {
 	if s.Trace != nil {
 		s.Trace("SubBalance", addr.String(), v.String())
 	}
 	a := seth.Address(addr)
-	acct, _ := s.Accounts.GetAccount(&a)
+	acct, _ := s.getAccount(&a)
 	bal := acct.Balance()
 	b := bal.Big()
 	b.Sub(b, v)
@@ -177,7 +220,7 @@ func (s *gethState) AddBalance(addr common.Address, v *big.Int) {
 		s.Trace("AddBalance", addr.String(), v.String())
 	}
 	a := seth.Address(addr)
-	acct, _ := s.Accounts.GetAccount(&a)
+	acct, _ := s.getAccount(&a)
 	bal := acct.Balance()
 	b := bal.Big()
 	b.Add(b, v)
@@ -192,7 +235,7 @@ func (s *gethState) GetBalance(addr common.Address) *big.Int {
 		s.Trace("GetBalance", addr.String())
 	}
 	a := seth.Address(addr)
-	acct, _ := s.Accounts.GetAccount(&a)
+	acct, _ := s.getAccount(&a)
 	bal := acct.Balance()
 	return bal.Big()
 }
@@ -202,7 +245,7 @@ func (s *gethState) GetNonce(addr common.Address) uint64 {
 		s.Trace("GetNonce", addr.String())
 	}
 	a := seth.Address(addr)
-	acct, _ := s.Accounts.GetAccount(&a)
+	acct, _ := s.getAccount(&a)
 	return acct.Nonce()
 }
 
@@ -211,10 +254,7 @@ func (s *gethState) SetNonce(addr common.Address, n uint64) {
 		s.Trace("SetNonce", addr.String(), n)
 	}
 	a := seth.Address(addr)
-	acct, ok := s.Accounts.GetAccount(&a)
-	if !ok {
-		panic("SetNonce called on account that doesn't exist")
-	}
+	acct, _ := s.getAccount(&a)
 	acct.SetNonce(n)
 	s.Accounts.SetAccount(&a, &acct)
 }
@@ -226,12 +266,34 @@ func (s *gethState) GetCodeHash(addr common.Address) common.Hash {
 	return common.Hash(seth.HashBytes(s.GetCode(addr)))
 }
 
+func (s *gethState) getCode(addr *seth.Address) []byte {
+	buf := s.Code.GetCode(addr)
+	c := s.Fallback.Client
+	if buf == nil && c != nil {
+		// TODO: don't do a superfluous GetCode here
+		// if we can determine that the account is a bare
+		// account with no code.
+		// Presently, this wastes time getting (possibly)
+		// empty code.
+		var err error
+		buf, err = c.GetCodeAt(addr, s.Fallback.Block)
+		if err != nil {
+			panic("fallback GetCode: " + err.Error())
+		}
+		if s.Trace != nil {
+			s.Trace("Fallback GetCode", addr.String())
+		}
+		s.Code.PutCode(addr, buf)
+	}
+	return buf
+}
+
 func (s *gethState) GetCode(addr common.Address) []byte {
 	if s.Trace != nil {
 		s.Trace("GetCode", addr.String())
 	}
 	a := seth.Address(addr)
-	return s.Code.GetCode(&a)
+	return s.getCode(&a)
 }
 
 func (s *gethState) SetCode(addr common.Address, data []byte) {
@@ -271,6 +333,18 @@ func (s *gethState) GetState(addr common.Address, hash common.Hash) common.Hash 
 	h := stateKey(&addr, &hash)
 	var out common.Hash
 	v := s.Storage.Get(h[:])
+	if len(v) == 0 && s.Fallback.Client != nil {
+		if s.Trace != nil {
+			s.Trace("Fallback GetState", addr.String(), hash.String())
+		}
+		a := seth.Address(addr)
+		h := seth.Hash(hash)
+		h, err := s.Fallback.StorageAt(&a, &h, s.Fallback.Block)
+		if err != nil {
+			panic("fallback StorageAt: " + err.Error())
+		}
+		v = h[:]
+	}
 	copy(out[:], v)
 	return out
 }
@@ -294,7 +368,7 @@ func (s *gethState) Exist(addr common.Address) bool {
 		s.Trace("Exist", addr.String())
 	}
 	a := seth.Address(addr)
-	_, ok := s.Accounts.GetAccount(&a)
+	_, ok := s.getAccount(&a)
 	return ok
 }
 
@@ -303,7 +377,7 @@ func (s *gethState) Empty(addr common.Address) bool {
 		s.Trace("Empty", addr.String())
 	}
 	a := seth.Address(addr)
-	acct, ok := s.Accounts.GetAccount(&a)
+	acct, ok := s.getAccount(&a)
 	bal := acct.Balance()
 	return !ok || (acct.Nonce() == 0 && bal.IsZero() && len(s.Code.GetCode(&a)) == 0)
 }
@@ -313,7 +387,10 @@ func (s *gethState) Suicide(addr common.Address) bool {
 		s.Trace("Suicide", addr.String())
 	}
 	a := seth.Address(addr)
-	acct, ok := s.Accounts.GetAccount(&a)
+	// TODO: not sure how to get suicide state
+	// out of the JSON-RPC API, so this may
+	// simply be wrong.
+	acct, ok := s.getAccount(&a)
 	if !ok || acct.Suicided() {
 		return false
 	}
@@ -407,6 +484,7 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 	if s.Trace != nil {
 		s.Trace("ForEachStorage", addr.String())
 	}
+	// It doesn't appear that the geth EVM actually uses this API.
 	panic("ForEachStorage not implemented")
 }
 
@@ -491,6 +569,12 @@ func lconv(l []*types.Log) []seth.Log {
 	return out
 }
 
+// Logs returns all of the logs emitted by
+// transactions in this chain.
+//
+// NOTE: if the chain is using a fallback chain,
+// the returned log values do not include logs
+// from that fallback chain.
 func (c *Chain) Logs() []seth.Log {
 	return lconv(c.State.Logs)
 }
@@ -532,6 +616,27 @@ func NewChain() *Chain {
 		},
 	}
 	return c
+}
+
+// NewFork creates a new fake blockchain that
+// operates like a fork of the chain backing
+// the given client at the given block number.
+//
+// tevm "forks" work by overlaying state updates
+// on top of the existing chain state, and chain
+// state is fetched lazily as calls are made.
+// Consequently, it costs basically nothing to
+// make a "fork," because no data is actually copied.
+func NewFork(c *seth.Client, blocknum int64) *Chain {
+	chain := NewChain()
+
+	// For convenience, start our chain at blocknum+1
+	n := seth.Uint64(blocknum + 1)
+	chain.State.Pending.Number = &n
+
+	chain.State.Fallback.Client = c
+	chain.State.Fallback.Block = blocknum
+	return chain
 }
 
 // NewAccount creates a new account with some ether in it.
