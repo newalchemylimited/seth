@@ -132,6 +132,11 @@ func (i *Int) Scan(s fmt.ScanState, verb rune) error {
 	return i.Big().Scan(s, verb)
 }
 
+// Cmp compares this Int to x. See big.Int.Cmp.
+func (i *Int) Cmp(x *Int) int {
+	return i.Big().Cmp(x.Big())
+}
+
 func (i *Int) IsZero() bool {
 	return i.Big().Sign() == 0
 }

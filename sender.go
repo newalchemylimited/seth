@@ -128,13 +128,12 @@ func (s *Sender) Cancel(h *Hash) (Hash, error) {
 	} else if tx.TxIndex != nil {
 		return Hash{}, errors.New("seth: cannot cancel")
 	}
-	price := NewInt(tx.GasPrice.Int64() + 1)
-	opts := CallOpts{To: s.Addr, From: s.Addr, GasPrice: price, Nonce: tx.Nonce}
-	gas, err := s.EstimateGas(&opts)
-	if err != nil {
-		return Hash{}, err
+	opts := CallOpts{To: s.Addr, From: s.Addr, Nonce: tx.Nonce}
+	if s.GasPrice.Cmp(&tx.GasPrice) > 0 {
+		opts.GasPrice = &s.GasPrice
+	} else {
+		opts.GasPrice = NewInt(tx.GasPrice.Int64() + 1)
 	}
-	opts.Gas = &gas
 	return s.Call(&opts)
 }
 
