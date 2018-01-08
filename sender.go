@@ -85,16 +85,38 @@ func (s *Sender) Create(code []byte) (Address, error) {
 	return *r.Address, nil
 }
 
+// CallOpts populates opts with default fields.
+func (s *Sender) CallOpts(opts *CallOpts) error {
+	if opts.From == nil {
+		opts.From = s.Addr
+	}
+	if opts.GasPrice == nil {
+		opts.GasPrice = &s.GasPrice
+	}
+	if opts.Gas == nil {
+		gas, err := s.EstimateGas(opts)
+		if err != nil {
+			return err
+		}
+		opts.Gas = s.pad(&gas)
+	}
+	return nil
+}
+
+// Call makes a transaction call using the given CallOpts. Omitted fields are
+// populated with default values.
+func (s *Sender) Call(opts *CallOpts) (Hash, error) {
+	if err := s.CallOpts(opts); err != nil {
+		return Hash{}, err
+	}
+	return s.Client.Call(opts)
+}
+
 // Send makes a contract call from the sender address.
 // It automatically handles gas estimation and padding.
 func (s *Sender) Send(to *Address, method string, args ...EtherType) (Hash, error) {
-	opts := CallOpts{To: to, From: s.Addr, GasPrice: &s.GasPrice}
+	opts := CallOpts{To: to}
 	opts.EncodeCall(method, args...)
-	gas, err := s.EstimateGas(&opts)
-	if err != nil {
-		return Hash{}, err
-	}
-	opts.Gas = s.pad(&gas)
 	return s.Call(&opts)
 }
 
