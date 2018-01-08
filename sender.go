@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// ErrCannotCancel is returned when attempting to cancel a transaction that has
+// already been mined.
+var ErrCannotCancel = errors.New("seth: cannot cancel")
+
 // Sender is a client that sends transactions
 // from a particular address.
 type Sender struct {
@@ -126,7 +130,7 @@ func (s *Sender) Cancel(h *Hash) (Hash, error) {
 	if err != nil {
 		return Hash{}, err
 	} else if tx.TxIndex != nil {
-		return Hash{}, errors.New("seth: cannot cancel")
+		return Hash{}, ErrCannotCancel
 	}
 	opts := CallOpts{To: s.Addr, From: s.Addr, Nonce: tx.Nonce}
 	if s.GasPrice.Cmp(&tx.GasPrice) > 0 {
