@@ -264,7 +264,7 @@ func (c *Client) StorageAt(addr *Address, offset *Hash, block int64) (Hash, erro
 	case -1:
 		buf3 = rawlatest
 	default:
-		buf3, _ = json.Marshal(block)
+		buf3 = itox(block)
 	}
 	var out Hash
 	err := c.Do("eth_getStorageAt", []json.RawMessage{buf, buf2, buf3}, &out)

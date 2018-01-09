@@ -451,6 +451,30 @@ var rawpending = json.RawMessage(`"pending"`)
 var rawlatest = json.RawMessage(`"latest"`)
 var rawnull = json.RawMessage("null")
 
+// GetNonceAt gets the account nonce for a specific address
+// and at a specific block number.
+func (c *Client) GetNonceAt(addr *Address, blocknum int64) (int64, error) {
+	var params [2]json.RawMessage
+	buf, _ := json.Marshal(addr)
+	params[0] = buf
+	params[1] = itox(blocknum)
+	var num Int
+	err := c.Do("eth_getTransactionCount", params[:], &num)
+	return num.Int64(), err
+}
+
+// GetBalanceAt gets the balance for a specific address
+// and at a specific block number.
+func (c *Client) GetBalanceAt(addr *Address, blocknum int64) (Int, error) {
+	var params [2]json.RawMessage
+	buf, _ := json.Marshal(addr)
+	params[0] = buf
+	params[1] = itox(blocknum)
+	wei := Int{}
+	err := c.Do("eth_getBalance", params[:], &wei)
+	return wei, err
+}
+
 // GetBalance gets the balance of an address in wei at the latest block.
 func (c *Client) GetBalance(addr *Address) (Int, error) {
 	params := []json.RawMessage{nil, rawlatest}
@@ -577,6 +601,19 @@ type Receipt struct {
 // Threw returns whether the transaction threw.
 func (r *Receipt) Threw() bool {
 	return r.Status == 0
+}
+
+func (c *Client) GetCodeAt(addr *Address, blocknum int64) ([]byte, error) {
+	var params [2]json.RawMessage
+	buf, _ := json.Marshal(addr)
+	params[0] = buf
+	params[1] = itox(blocknum)
+	var out Data
+	err := c.Do("eth_getCode", params[:], &out)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(out), nil
 }
 
 func (c *Client) GetCode(addr *Address) ([]byte, error) {

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/newalchemylimited/seth"
+	"github.com/newalchemylimited/seth/cc"
 )
 
 func tracefn(t *testing.T) func(s string, args ...interface{}) {
@@ -201,5 +203,26 @@ func TestCreateAt(t *testing.T) {
 	code = bundle.Contract("Bad").Code
 	if err := chain.CreateAt(addr, &me, code); err == nil {
 		t.Fatal("expected error, got nothing")
+	}
+}
+
+func TestForkedChain(t *testing.T) {
+	chain := NewFork(seth.NewClientTransport(seth.InfuraTransport{}), 4876654)
+	me := chain.NewAccount(1)
+
+	// Check that the total supply of OMG is 140245398245132780789239631
+
+	omg, _ := cc.CurrencyByName("OMG")
+	var out, ts big.Int
+	ts.SetString("140245398245132780789239631", 10)
+
+	ret, err := chain.StaticCall(&me, omg.Addr(), "totalSupply()")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.SetBytes(ret)
+
+	if out.Cmp(&ts) != 0 {
+		t.Fatalf("%d != %d", &out, &ts)
 	}
 }

@@ -160,26 +160,30 @@ func TestReceipt(t *testing.T) {
 		ugly, _ = ParseHash("0xf00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00ba4f00b")
 	)
 
-	c := NewHTTPClient("https://api.myetherapi.com/eth")
+	for _, c := range []*Client{
+		NewHTTPClient("https://api.myetherapi.com/eth"),
+		NewClientTransport(InfuraTransport{}),
+	} {
 
-	if r, err := c.GetReceipt(good); err != nil {
-		t.Error(err)
-	} else if r == nil {
-		t.Error("receipt not found")
-	} else if r.Threw() {
-		t.Error("receipt indicates failure")
-	}
+		if r, err := c.GetReceipt(good); err != nil {
+			t.Error(err)
+		} else if r == nil {
+			t.Error("receipt not found")
+		} else if r.Threw() {
+			t.Error("receipt indicates failure")
+		}
 
-	if r, err := c.GetReceipt(bad); err != nil {
-		t.Error(err)
-	} else if r == nil {
-		t.Error("receipt not found")
-	} else if !r.Threw() {
-		t.Error("receipt indicates success")
-	}
+		if r, err := c.GetReceipt(bad); err != nil {
+			t.Error(err)
+		} else if r == nil {
+			t.Error("receipt not found")
+		} else if !r.Threw() {
+			t.Error("receipt indicates success")
+		}
 
-	if _, err := c.GetReceipt(ugly); err != ErrNotFound {
-		t.Error("expected not found, but got:", err)
+		if _, err := c.GetReceipt(ugly); err != ErrNotFound {
+			t.Error("expected not found, but got:", err)
+		}
 	}
 }
 
