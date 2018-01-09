@@ -22,3 +22,9 @@ func (c *Client) UnlockAccount(addr *Address, password string) error {
 	}
 	return nil
 }
+
+func (c *Client) Accounts() ([]Address, error) {
+	var out []Address
+	err := c.Do("eth_accounts", []json.RawMessage{}, &out)
+	return out, err
+}

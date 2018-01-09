@@ -152,6 +152,18 @@ func TestPubKeyToAddress(t *testing.T) {
 	}
 }
 
+func TestAccounts(t *testing.T) {
+	t.Parallel()
+	c := NewClientTransport(InfuraTransport{})
+	accts, err := c.Accounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accts) != 0 {
+		t.Fatal("got", len(accts), "accounts...?")
+	}
+}
+
 func TestReceipt(t *testing.T) {
 	t.Parallel()
 	var (
