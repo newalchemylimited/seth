@@ -89,8 +89,9 @@ func (s *Sender) Create(code []byte) (Address, error) {
 	return *r.Address, nil
 }
 
-// CallOpts populates opts with default fields.
-func (s *Sender) CallOpts(opts *CallOpts) error {
+// Call makes a transaction call using the given CallOpts. Omitted fields are
+// populated with default values.
+func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 	if opts.From == nil {
 		opts.From = s.Addr
 	}
@@ -100,18 +101,9 @@ func (s *Sender) CallOpts(opts *CallOpts) error {
 	if opts.Gas == nil {
 		gas, err := s.EstimateGas(opts)
 		if err != nil {
-			return err
+			return Hash{}, err
 		}
 		opts.Gas = s.pad(&gas)
-	}
-	return nil
-}
-
-// Call makes a transaction call using the given CallOpts. Omitted fields are
-// populated with default values.
-func (s *Sender) Call(opts *CallOpts) (Hash, error) {
-	if err := s.CallOpts(opts); err != nil {
-		return Hash{}, err
 	}
 	return s.Client.Call(opts)
 }
