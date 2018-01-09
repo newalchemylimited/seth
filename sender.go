@@ -1,10 +1,15 @@
 package seth
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
 )
+
+// ErrCannotCancel is returned when attempting to cancel a transaction that has
+// already been mined.
+var ErrCannotCancel = errors.New("seth: cannot cancel")
 
 // Sender is a client that sends transactions
 // from a particular address.
@@ -84,16 +89,47 @@ func (s *Sender) Create(code []byte) (Address, error) {
 	return *r.Address, nil
 }
 
+// Call makes a transaction call using the given CallOpts. Omitted fields are
+// populated with default values.
+func (s *Sender) Call(opts *CallOpts) (Hash, error) {
+	if opts.From == nil {
+		opts.From = s.Addr
+	}
+	if opts.GasPrice == nil {
+		opts.GasPrice = &s.GasPrice
+	}
+	if opts.Gas == nil {
+		gas, err := s.EstimateGas(opts)
+		if err != nil {
+			return Hash{}, err
+		}
+		opts.Gas = s.pad(&gas)
+	}
+	return s.Client.Call(opts)
+}
+
 // Send makes a contract call from the sender address.
 // It automatically handles gas estimation and padding.
 func (s *Sender) Send(to *Address, method string, args ...EtherType) (Hash, error) {
-	opts := CallOpts{To: to, From: s.Addr, GasPrice: &s.GasPrice}
+	opts := CallOpts{To: to}
 	opts.EncodeCall(method, args...)
-	gas, err := s.EstimateGas(&opts)
+	return s.Call(&opts)
+}
+
+// Cancel a transaction with the given hash.
+func (s *Sender) Cancel(h *Hash) (Hash, error) {
+	tx, err := s.GetTransaction(h)
 	if err != nil {
 		return Hash{}, err
+	} else if tx.TxIndex != nil {
+		return Hash{}, ErrCannotCancel
 	}
-	opts.Gas = s.pad(&gas)
+	opts := CallOpts{To: s.Addr, From: s.Addr, Nonce: tx.Nonce}
+	if s.GasPrice.Cmp(&tx.GasPrice) > 0 {
+		opts.GasPrice = &s.GasPrice
+	} else {
+		opts.GasPrice = NewInt(tx.GasPrice.Int64() + 1)
+	}
 	return s.Call(&opts)
 }
 

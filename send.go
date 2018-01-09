@@ -137,6 +137,7 @@ type CallOpts struct {
 	GasPrice *Int     `json:"gasPrice,omitempty"` // GasPrice offered for gas
 	Value    *Int     `json:"value,omitempty"`    // Value to send
 	Data     Data     `json:"data"`               // Input to the call
+	Nonce    Uint64   `json:"nonce,omitempty"`    // Nonce of the call
 }
 
 const illegal = " \t\n\b-+/~!@#$%^&*=|;:\"<>\\?"
