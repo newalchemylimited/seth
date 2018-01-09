@@ -204,14 +204,18 @@ func TestGetNonce(t *testing.T) {
 
 	// Bittrex address
 	addr, _ := ParseAddress("0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98")
-	client := NewHTTPClient("https://api.myetherapi.com/eth")
 
 	const min = 4124441 // Nonce at time the test was added.
 
-	nonce, err := client.GetNonce(addr)
-	if err != nil {
-		t.Fatal(err)
-	} else if nonce < min {
-		t.Fatal("nonce is too low:", nonce, "<", min)
+	for _, client := range []*Client{
+		NewHTTPClient("https://api.myetherapi.com/eth"),
+		NewClientTransport(InfuraTransport{}),
+	} {
+		nonce, err := client.GetNonce(addr)
+		if err != nil {
+			t.Fatal(err)
+		} else if nonce < min {
+			t.Fatal("nonce is too low:", nonce, "<", min)
+		}
 	}
 }

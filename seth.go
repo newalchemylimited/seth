@@ -454,7 +454,28 @@ var rawtrue = json.RawMessage("true")
 var rawfalse = json.RawMessage("false")
 var rawpending = json.RawMessage(`"pending"`)
 var rawlatest = json.RawMessage(`"latest"`)
+var rawearliest = json.RawMessage(`"earliest"`)
 var rawnull = json.RawMessage("null")
+
+// Block specifiers.
+const (
+	Pending  = -2 // Pending block.
+	Latest   = -1 // Latest block.
+	Earliest = 0  // Earliest block.
+)
+
+// itobs converts an int to a block specifier.
+func itobs(i int64) json.RawMessage {
+	switch i {
+	case Pending:
+		return rawpending
+	case Latest:
+		return rawlatest
+	case Earliest:
+		return rawearliest
+	}
+	return itox(i)
+}
 
 // GetNonceAt gets the account nonce for a specific address
 // and at a specific block number.
@@ -462,10 +483,15 @@ func (c *Client) GetNonceAt(addr *Address, blocknum int64) (int64, error) {
 	var params [2]json.RawMessage
 	buf, _ := json.Marshal(addr)
 	params[0] = buf
-	params[1] = itox(blocknum)
+	params[1] = itobs(blocknum)
 	var num Int
 	err := c.Do("eth_getTransactionCount", params[:], &num)
 	return num.Int64(), err
+}
+
+// GetNonce gets the account nonce for an address in the latest block.
+func (c *Client) GetNonce(addr *Address) (int64, error) {
+	return c.GetNonceAt(addr, Latest)
 }
 
 // GetBalanceAt gets the balance for a specific address
@@ -474,7 +500,7 @@ func (c *Client) GetBalanceAt(addr *Address, blocknum int64) (Int, error) {
 	var params [2]json.RawMessage
 	buf, _ := json.Marshal(addr)
 	params[0] = buf
-	params[1] = itox(blocknum)
+	params[1] = itobs(blocknum)
 	wei := Int{}
 	err := c.Do("eth_getBalance", params[:], &wei)
 	return wei, err
@@ -482,26 +508,15 @@ func (c *Client) GetBalanceAt(addr *Address, blocknum int64) (Int, error) {
 
 // GetBalance gets the balance of an address in wei at the latest block.
 func (c *Client) GetBalance(addr *Address) (Int, error) {
-	params := []json.RawMessage{nil, rawlatest}
-	buf, _ := json.Marshal(addr)
-	params[0] = json.RawMessage(buf)
-	wei := Int{}
-	err := c.Do("eth_getBalance", params, &wei)
-	return wei, err
+	return c.GetBalanceAt(addr, Latest)
 }
 
 // GetBlock gets a block by block number. If 'txs' is true,
 // the block includes all the transactions in the block; otherwise
-// it only includes the transaction hashes. As a special case,
-// a negative block number is interpreted to mean the pending block.
+// it only includes the transaction hashes.
 func (c *Client) GetBlock(num int64, txs bool) (*Block, error) {
 	params := make([]json.RawMessage, 2)
-	if num >= 0 {
-		buf, _ := json.Marshal((*Int)(big.NewInt(num)))
-		params[0] = json.RawMessage(buf)
-	} else {
-		params[0] = rawpending
-	}
+	params[0] = itobs(num)
 	if txs {
 		params[1] = rawtrue
 	} else {
@@ -528,19 +543,7 @@ func (c *Client) GetTransaction(h *Hash) (*Transaction, error) {
 
 // Latest returns the latest block
 func (c *Client) Latest(txs bool) (*Block, error) {
-	out := Block{}
-	params := make([]json.RawMessage, 2)
-	params[0] = rawlatest
-	if txs {
-		params[1] = rawtrue
-	} else {
-		params[1] = rawfalse
-	}
-	err := c.Do("eth_getBlockByNumber", params, &out)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
+	return c.GetBlock(Latest, txs)
 }
 
 // BlockIterator manages a channel that
@@ -608,11 +611,12 @@ func (r *Receipt) Threw() bool {
 	return r.Status == 0
 }
 
+// GetCodeAt gets the code for the given address at the given block.
 func (c *Client) GetCodeAt(addr *Address, blocknum int64) ([]byte, error) {
 	var params [2]json.RawMessage
 	buf, _ := json.Marshal(addr)
 	params[0] = buf
-	params[1] = itox(blocknum)
+	params[1] = itobs(blocknum)
 	var out Data
 	err := c.Do("eth_getCode", params[:], &out)
 	if err != nil {
@@ -621,14 +625,9 @@ func (c *Client) GetCodeAt(addr *Address, blocknum int64) ([]byte, error) {
 	return []byte(out), nil
 }
 
+// GetCode gets the code for the given address in the latest block.
 func (c *Client) GetCode(addr *Address) ([]byte, error) {
-	buf, _ := json.Marshal(addr)
-	var out Data
-	err := c.Do("eth_getCode", []json.RawMessage{buf, rawlatest}, &out)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(out), nil
+	return c.GetCodeAt(addr, Latest)
 }
 
 // GetReceipt gets a receipt for a given transaction hash.
@@ -640,17 +639,6 @@ func (c *Client) GetReceipt(tx *Hash) (*Receipt, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-// GetNonce gets the nonce of the given address in the pending block.
-func (c *Client) GetNonce(addr *Address) (int64, error) {
-	buf, _ := json.Marshal(addr)
-	out := Uint64(0)
-	err := c.Do("eth_getTransactionCount", []json.RawMessage{buf, rawpending}, &out)
-	if err != nil {
-		return 0, err
-	}
-	return int64(out), nil
 }
 
 // Log is an Ethereum log (or, in Solidity, an "event")

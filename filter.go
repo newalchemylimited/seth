@@ -130,8 +130,6 @@ func itox(i int64) json.RawMessage {
 	return append(o, '"')
 }
 
-var rawearliest = json.RawMessage(`"earliest"`)
-
 // FilterTopics creates a log filter that matches the given topics. (Topics are order-dependent.)
 // If 'addr' is non-nil, only logs generated from that address are yielded by the filter.
 // If 'start' and 'end' are non-negative, then they specify the range of blocks in which to
