@@ -117,6 +117,7 @@ func TestChainBasic(t *testing.T) {
 
 // Test that a chain can be JSON marshaled and recovered.
 func TestChainSerialization(t *testing.T) {
+	t.Parallel()
 	chain := NewChain()
 
 	me := chain.NewAccount(1)
@@ -142,6 +143,7 @@ func TestChainSerialization(t *testing.T) {
 
 // Test that creating a contract at an address works.
 func TestCreateAt(t *testing.T) {
+	t.Parallel()
 	chain := NewChain()
 
 	me := chain.NewAccount(1)
@@ -207,6 +209,7 @@ func TestCreateAt(t *testing.T) {
 }
 
 func TestForkedChain(t *testing.T) {
+	t.Parallel()
 	chain := NewFork(seth.NewClientTransport(seth.InfuraTransport{}), 4876654)
 	me := chain.NewAccount(1)
 

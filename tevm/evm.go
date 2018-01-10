@@ -73,37 +73,6 @@ var theparams = params.ChainConfig{
 	EIP158Block:    new(big.Int),
 }
 
-type CodeTree struct {
-	Tree
-}
-
-// GetCode gets the code associated with an address
-func (c *CodeTree) GetCode(addr *seth.Address) []byte {
-	return c.Tree.Get(addr[:])
-}
-
-// PutCode sets the code associated with an address
-func (c *CodeTree) PutCode(addr *seth.Address, code []byte) {
-	c.Tree.Insert(addr[:], code)
-}
-
-type AccountTree struct {
-	Tree
-}
-
-// GetAccount gets an account
-func (a *AccountTree) GetAccount(addr *seth.Address) (Account, bool) {
-	var acct Account
-	v := a.Tree.Get(addr[:])
-	copy(acct[:], v)
-	return acct, len(v) == len(acct)
-}
-
-// SetAccount sets an account
-func (a *AccountTree) SetAccount(addr *seth.Address, acct *Account) {
-	a.Tree.Insert(addr[:], acct[:])
-}
-
 // State database for the EVM.
 type State struct {
 	// Fallback is used when a lookup for data on an account
@@ -120,15 +89,13 @@ type State struct {
 
 	Pending *seth.Block
 
-	Accounts AccountTree
-	Code     CodeTree
-	Storage  Tree // key = hash(address, pointer)
-	Preimage Tree
-
+	Accounts     Tree
+	Code         Tree
+	Storage      Tree // key = hash(address, pointer)
+	Preimage     Tree
 	Transactions Tree // key = txhash, value = serialized tx
 	Receipts     Tree // key = txhash, value = serialized rx
-
-	Blocks Tree // key = n2h(blocknum) = hash, value = serialized block
+	Blocks       Tree // key = n2h(blocknum) = hash, value = serialized block
 
 	Logs []*types.Log
 	snapshots
@@ -147,6 +114,17 @@ func (s *State) StateDB() vm.StateDB {
 // these methods into the documentation.
 type gethState State
 
+func (s *gethState) treeAccount(addr *seth.Address) (Account, bool) {
+	var acct Account
+	v := s.Accounts.Get(addr[:])
+	copy(acct[:], v)
+	return acct, len(v) == len(acct)
+}
+
+func (s *gethState) setAccount(addr *seth.Address, acct *Account) {
+	s.Accounts.Insert(addr[:], acct[:])
+}
+
 type statesnap struct {
 	Refund   seth.Uint64
 	Accounts int
@@ -163,41 +141,39 @@ func (s *gethState) CreateAccount(addr common.Address) {
 	}
 	var empty Account
 	a := seth.Address(addr)
-	s.Accounts.SetAccount(&a, &empty)
+	s.setAccount(&a, &empty)
 }
 
-func (s *gethState) fallbackAcct(addr *seth.Address) (Account, bool) {
+func (s *gethState) getAccount(addr *seth.Address) (Account, bool) {
+	acct, ok := s.treeAccount(addr)
+	if ok {
+		return acct, true
+	}
+	if s.Fallback.Client == nil {
+		return acct, false
+	}
 	if s.Trace != nil {
 		s.Trace("Fallback GetAccount", addr.String())
 	}
 
-	var ret Account
 	c := s.Fallback.Client
 	bal, err := c.GetBalanceAt(addr, s.Fallback.Block)
 	if err != nil {
 		panic("fallback GetBalance: " + err.Error())
 	}
-	ret.SetBalance((*big.Int)(&bal))
+	acct.SetBalance((*big.Int)(&bal))
 	nonce, err := c.GetNonceAt(addr, s.Fallback.Block)
 	if err != nil {
 		panic("fallback GetNonce: " + err.Error())
 	}
 	if nonce == 0 && bal.IsZero() {
-		return Account{}, false
+		return acct, false
 	}
 
-	ret.SetNonce(uint64(nonce))
-	s.Accounts.SetAccount(addr, &ret)
+	acct.SetNonce(uint64(nonce))
+	s.setAccount(addr, &acct)
 	// TODO: ret.Suicided()?
-	return ret, true
-}
-
-func (s *gethState) getAccount(addr *seth.Address) (Account, bool) {
-	acct, ok := s.Accounts.GetAccount(addr)
-	if !ok && s.Fallback.Client != nil {
-		return s.fallbackAcct(addr)
-	}
-	return acct, ok
+	return acct, true
 }
 
 func (s *gethState) SubBalance(addr common.Address, v *big.Int) {
@@ -212,7 +188,7 @@ func (s *gethState) SubBalance(addr common.Address, v *big.Int) {
 	var newacct Account
 	copy(newacct[:], acct[:])
 	newacct.SetBalance(b)
-	s.Accounts.SetAccount(&a, &newacct)
+	s.setAccount(&a, &newacct)
 }
 
 func (s *gethState) AddBalance(addr common.Address, v *big.Int) {
@@ -227,7 +203,7 @@ func (s *gethState) AddBalance(addr common.Address, v *big.Int) {
 	var newacct Account
 	copy(newacct[:], acct[:])
 	newacct.SetBalance(b)
-	s.Accounts.SetAccount(&a, &newacct)
+	s.setAccount(&a, &newacct)
 }
 
 func (s *gethState) GetBalance(addr common.Address) *big.Int {
@@ -256,7 +232,7 @@ func (s *gethState) SetNonce(addr common.Address, n uint64) {
 	a := seth.Address(addr)
 	acct, _ := s.getAccount(&a)
 	acct.SetNonce(n)
-	s.Accounts.SetAccount(&a, &acct)
+	s.setAccount(&a, &acct)
 }
 
 func (s *gethState) GetCodeHash(addr common.Address) common.Hash {
@@ -267,7 +243,7 @@ func (s *gethState) GetCodeHash(addr common.Address) common.Hash {
 }
 
 func (s *gethState) getCode(addr *seth.Address) []byte {
-	buf := s.Code.GetCode(addr)
+	buf := s.Code.Get(addr[:])
 	c := s.Fallback.Client
 	if buf == nil && c != nil {
 		// TODO: don't do a superfluous GetCode here
@@ -283,7 +259,7 @@ func (s *gethState) getCode(addr *seth.Address) []byte {
 		if s.Trace != nil {
 			s.Trace("Fallback GetCode", addr.String())
 		}
-		s.Code.PutCode(addr, buf)
+		s.Code.Insert(addr[:], buf)
 	}
 	return buf
 }
@@ -300,8 +276,7 @@ func (s *gethState) SetCode(addr common.Address, data []byte) {
 	if s.Trace != nil {
 		s.Trace("SetCode", addr.String(), data)
 	}
-	a := seth.Address(addr)
-	s.Code.PutCode(&a, data)
+	s.Code.Insert(addr[:], data)
 }
 
 func (s *gethState) GetCodeSize(addr common.Address) int {
@@ -379,7 +354,7 @@ func (s *gethState) Empty(addr common.Address) bool {
 	a := seth.Address(addr)
 	acct, ok := s.getAccount(&a)
 	bal := acct.Balance()
-	return !ok || (acct.Nonce() == 0 && bal.IsZero() && len(s.Code.GetCode(&a)) == 0)
+	return !ok || (acct.Nonce() == 0 && bal.IsZero() && len(s.Code.Get(a[:])) == 0)
 }
 
 func (s *gethState) Suicide(addr common.Address) bool {
@@ -395,7 +370,7 @@ func (s *gethState) Suicide(addr common.Address) bool {
 		return false
 	}
 	acct.SetSuicided(true)
-	s.Accounts.SetAccount(&a, &acct)
+	s.setAccount(&a, &acct)
 	return true
 }
 
@@ -404,7 +379,7 @@ func (s *gethState) HasSuicided(addr common.Address) bool {
 		s.Trace("HasSuicided", addr.String())
 	}
 	a := seth.Address(addr)
-	acct, ok := s.Accounts.GetAccount(&a)
+	acct, ok := s.getAccount(&a)
 	return ok && acct.Suicided()
 }
 
@@ -455,8 +430,8 @@ func (s *State) atSnap(n int, dst *State) {
 	ns := s.Snapshots[n]
 	dst.Trace = s.Trace
 	dst.Refund = s.Refund
-	dst.Accounts = AccountTree{s.Accounts.CopyAt(ns.Accounts)}
-	dst.Code = CodeTree{s.Code.CopyAt(ns.Code)}
+	dst.Accounts = s.Accounts.CopyAt(ns.Accounts)
+	dst.Code = s.Code.CopyAt(ns.Code)
 	dst.Storage = s.Storage.CopyAt(ns.State)
 	dst.Transactions = s.Transactions.CopyAt(ns.TXs)
 	dst.Receipts = s.Receipts.CopyAt(ns.RXs)
@@ -659,7 +634,7 @@ func (c *Chain) NewAccount(ether int) seth.Address {
 
 	var acct Account
 	acct.SetBalance(&b)
-	c.State.Accounts.SetAccount(&addr, &acct)
+	c.State.Accounts.Insert(addr[:], acct[:])
 	return addr
 }
 
@@ -677,8 +652,8 @@ func dotransfer(s vm.StateDB, from, to common.Address, v *big.Int) {
 	}
 
 	aaddr, baddr := seth.Address(from), seth.Address(to)
-	facct, _ := st.Accounts.GetAccount(&aaddr)
-	fbcct, _ := st.Accounts.GetAccount(&baddr)
+	facct, _ := st.getAccount(&aaddr)
+	fbcct, _ := st.getAccount(&baddr)
 
 	var ov big.Int
 	fb, tb := facct.Balance(), fbcct.Balance()
@@ -691,8 +666,8 @@ func dotransfer(s vm.StateDB, from, to common.Address, v *big.Int) {
 	facct.SetBalance(fbb)
 	fbcct.SetBalance(tbb)
 
-	st.Accounts.SetAccount(&aaddr, &facct)
-	st.Accounts.SetAccount(&baddr, &fbcct)
+	st.setAccount(&aaddr, &facct)
+	st.setAccount(&baddr, &fbcct)
 }
 
 func (c *Chain) context(sender [20]byte) vm.Context {
@@ -829,7 +804,7 @@ func (c *Chain) AddBalance(addr *seth.Address, v *big.Int) {
 }
 
 func (c *Chain) balanceOf(addr *seth.Address) *big.Int {
-	acct, _ := c.State.Accounts.GetAccount(addr)
+	acct, _ := ((*gethState)(&c.State)).getAccount(addr)
 	bal := acct.Balance()
 	return bal.Big()
 }
