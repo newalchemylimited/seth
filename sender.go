@@ -35,7 +35,7 @@ func NewSender(c *Client, from *Address) *Sender {
 	s := &Sender{Client: c, Addr: from}
 	s.GasRatio.Num = 6
 	s.GasRatio.Denom = 5
-	(*big.Int)(&s.GasPrice).SetString("5000000000", 10) // 5 Gwei
+	(*big.Int)(&s.GasPrice).SetString("50000000000", 10) // 50 Gwei
 	return s
 }
 
