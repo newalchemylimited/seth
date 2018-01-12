@@ -563,7 +563,7 @@ func n2h(u uint64) common.Hash {
 const (
 	defaultBlock      = 100
 	defaultBlockTime  = 30
-	defaultGasPrice   = 4000000000 // 4 gwei
+	defaultGasPrice   = 50000000000 // 50 Gwei
 	defaultGasLimit   = 6000000
 	defaultDifficulty = 100
 )
