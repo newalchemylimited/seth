@@ -313,7 +313,7 @@ func (d *ABIDecoder) UnmarshalText(v []byte) error {
 func DecodeABI(v []byte, args ...interface{}) error {
 	var spare big.Int
 	cur := v
-	offset := 0
+	offset := int64(0)
 	for i, v := range args {
 		if len(cur[offset:]) == 0 {
 			return fmt.Errorf("no argument returned at position %d", i)
@@ -337,6 +337,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			did = false
 		}
 		if did {
+			offset += 32
 			continue
 		}
 
@@ -344,46 +345,46 @@ func DecodeABI(v []byte, args ...interface{}) error {
 		switch v := v.(type) {
 		case *string:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad string offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad string offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
 			if dpos+length >= int64(len(cur)) {
-				fmt.Errorf("bad string length %d for data length returned (%d)", length, len(cur))
+				return fmt.Errorf("bad string length %d for data length returned (%d)", length, len(cur))
 			}
 			*v = string(cur[dpos : dpos+length])
 		case *[]byte:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
 			if dpos+length >= int64(len(cur)) {
-				fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
+				return fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
 			}
 			*v = make([]byte, length)
 			copy(*v, cur[dpos:dpos+length])
 		case *Bytes:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad bytes offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
 			if dpos+length >= int64(len(cur)) {
-				fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
+				return fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
 			}
 			*v = make([]byte, length)
 			copy(*v, cur[dpos:dpos+length])
 		case *IntSlice:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
@@ -399,14 +400,14 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			*v = IntSlice(s)
 		case *AddrSlice:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
 			if dpos+(length*32) >= int64(len(cur)) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			s := make([]Address, length)
 			for i := range s {
@@ -416,14 +417,14 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			*v = AddrSlice(s)
 		case *DataSlice:
 			doff := spare.Int64()
-			if doff >= int64(len(cur)-32) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			if doff < offset+32 || doff >= int64(len(cur)-32) {
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
 			if dpos+(length*32) >= int64(len(cur)) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			s := make([]Data, length)
 			for i := range s {
