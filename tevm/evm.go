@@ -428,6 +428,7 @@ func (s *State) atSnap(n int, dst *State) {
 		return
 	}
 	ns := s.Snapshots[n]
+	dst.Fallback = s.Fallback
 	dst.Trace = s.Trace
 	dst.Refund = s.Refund
 	dst.Accounts = s.Accounts.CopyAt(ns.Accounts)
@@ -470,6 +471,20 @@ type Chain struct {
 	State      State
 	block2snap map[int64]int
 	mu         sync.Mutex
+}
+
+// Copy returns a new logical copy of the chain.
+// Copy avoids making a deep copy of the state.
+func (c *Chain) Copy() *Chain {
+	cc := new(Chain)
+
+	// snapshot the current chain state
+	// and grab a logical copy of the snapshot
+	c.State.atSnap(((*gethState)(&c.State)).Snapshot(), &cc.State)
+
+	p := *c.State.Pending
+	cc.State.Pending = &p
+	return cc
 }
 
 // AtBlock returns the chain state at a given
