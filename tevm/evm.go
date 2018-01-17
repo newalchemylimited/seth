@@ -318,6 +318,7 @@ func (s *gethState) GetState(addr common.Address, hash common.Hash) common.Hash 
 		if err != nil {
 			panic("fallback StorageAt: " + err.Error())
 		}
+		s.Storage.Insert(hash[:], h[:])
 		v = h[:]
 	}
 	copy(out[:], v)
@@ -331,7 +332,11 @@ func (s *gethState) SetState(addr common.Address, hash, value common.Hash) {
 		s.Trace("SetState", addr.String(), hash.String(), value.String())
 	}
 	h := stateKey(&addr, &hash)
-	if value == zerohash {
+
+	// We can only remove elements from the tree if we're
+	// not operating as an overlay for the main chain state.
+	// Explicitly storing zeros also makes reading this storage faster.
+	if s.Fallback.Client == nil && value == zerohash {
 		s.Storage.Delete(h[:])
 	} else {
 		s.Storage.Insert(h[:], value[:])
