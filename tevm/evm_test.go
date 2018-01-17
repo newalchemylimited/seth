@@ -228,4 +228,23 @@ func TestForkedChain(t *testing.T) {
 	if out.Cmp(&ts) != 0 {
 		t.Fatalf("%d != %d", &out, &ts)
 	}
+
+	chain2 := chain.Copy()
+
+	me2 := chain2.NewAccount(1)
+
+	ret, err = chain2.StaticCall(&me2, omg.Addr(), "totalSupply()")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.SetBytes(ret)
+
+	if out.Cmp(&ts) != 0 {
+		t.Fatalf("%d != %d", &out, &ts)
+	}
+
+	bal := chain.BalanceOf(&me2)
+	if bal.Sign() != 0 {
+		t.Errorf("non-zero balance (%d) on the other side of the chain copy...?", bal)
+	}
 }

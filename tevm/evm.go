@@ -318,6 +318,7 @@ func (s *gethState) GetState(addr common.Address, hash common.Hash) common.Hash 
 		if err != nil {
 			panic("fallback StorageAt: " + err.Error())
 		}
+		s.Storage.Insert(hash[:], h[:])
 		v = h[:]
 	}
 	copy(out[:], v)
@@ -331,7 +332,11 @@ func (s *gethState) SetState(addr common.Address, hash, value common.Hash) {
 		s.Trace("SetState", addr.String(), hash.String(), value.String())
 	}
 	h := stateKey(&addr, &hash)
-	if value == zerohash {
+
+	// We can only remove elements from the tree if we're
+	// not operating as an overlay for the main chain state.
+	// Explicitly storing zeros also makes reading this storage faster.
+	if s.Fallback.Client == nil && value == zerohash {
 		s.Storage.Delete(h[:])
 	} else {
 		s.Storage.Insert(h[:], value[:])
@@ -428,6 +433,7 @@ func (s *State) atSnap(n int, dst *State) {
 		return
 	}
 	ns := s.Snapshots[n]
+	dst.Fallback = s.Fallback
 	dst.Trace = s.Trace
 	dst.Refund = s.Refund
 	dst.Accounts = s.Accounts.CopyAt(ns.Accounts)
@@ -470,6 +476,20 @@ type Chain struct {
 	State      State
 	block2snap map[int64]int
 	mu         sync.Mutex
+}
+
+// Copy returns a new logical copy of the chain.
+// Copy avoids making a deep copy of the state.
+func (c *Chain) Copy() *Chain {
+	cc := new(Chain)
+
+	// snapshot the current chain state
+	// and grab a logical copy of the snapshot
+	c.State.atSnap(((*gethState)(&c.State)).Snapshot(), &cc.State)
+
+	p := *c.State.Pending
+	cc.State.Pending = &p
+	return cc
 }
 
 // AtBlock returns the chain state at a given
