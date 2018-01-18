@@ -20,7 +20,24 @@ func home() string {
 	return ""
 }
 
+// IPCPath returns a closure that dials a unix socket.
+//
+// It can be used in NewClient like
+//
+//  NewClient(IPCPath("/path/to/geth.ipc"))
+//
+func IPCPath(s string) func() (io.ReadWriteCloser, error) {
+	return func() (io.ReadWriteCloser, error) {
+		return net.Dial("unix", s)
+	}
+}
+
 // IPCDial dials geth over local IPC
+//
+// It can be used in NewClient like
+//
+//  NewClient(IPCDial)
+//
 func IPCDial() (io.ReadWriteCloser, error) {
 	var sockpath string
 	switch runtime.GOOS {
