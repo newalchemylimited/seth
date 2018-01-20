@@ -163,12 +163,109 @@ func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, e
 		// hack: block hashes are hashes of the block number
 		h := seth.Hash(n2h(uint64(n.Int64())))
 		return c.getBlock(&h, all)
+	case "eth_newFilter":
+		type newFilterReq struct {
+			FromBlock blocknum      `json:"fromBlock,omitempty"`
+			ToBlock   blocknum      `json:"toBlock,omitempty"`
+			Address   *seth.Address `json:"address,omitempty"`
+			Topics    []*seth.Hash  `json:"topics,omitempty"`
+		}
+		req := new(newFilterReq)
+		if err := marshal(params, req); err != nil {
+			return nil, err
+		}
+		return c.newFilter(req.FromBlock, req.ToBlock, req.Address, req.Topics)
+	case "eth_getFilterChanges":
+		var n seth.Int
+		if err := marshal(params, &n); err != nil {
+			return nil, err
+		}
+		return c.filterChanges(int(n.Int64()))
+	case "eth_getFilterLogs":
+		var n seth.Int
+		if err := marshal(params, &n); err != nil {
+			return nil, err
+		}
+		return c.filterLogs(int(n.Int64()))
+	case "eth_uninstallFilter":
+		var n seth.Int
+		if err := marshal(params, &n); err != nil {
+			return nil, err
+		}
+		return c.deleteFilter(int(n.Int64()))
 	default:
 		return nil, errors.New(method + ": unsupported method")
 	}
 }
 
-// constCall handles eth_call.
+func (c *Chain) newFilter(from, to blocknum, addr *seth.Address, topics []*seth.Hash) (int, error) {
+	if from > to {
+		return 0, fmt.Errorf("cannot filter block range [%d,%d)", from, to)
+	}
+	c.filtcount++
+	if c.filters == nil {
+		c.filters = make(map[int]*filter)
+	}
+	c.filters[c.filtcount] = &filter{
+		from:   from,
+		to:     to,
+		addr:   addr,
+		topics: topics,
+	}
+	return c.filtcount, nil
+}
+
+func (c *Chain) filterLogs(fd int) ([]seth.Log, error) {
+	// unlike filterChanges, this is supposed
+	// to yield every matching entry to the filter
+	if c.filters == nil {
+		return nil, fmt.Errorf("bad filter id %d", fd)
+	}
+	filt, ok := c.filters[fd]
+	if !ok {
+		return nil, fmt.Errorf("bad filter id %d", fd)
+	}
+
+	out := make([]seth.Log, 0)
+	for i := range c.State.Logs {
+		if filt.matches(c.State.Logs[i]) {
+			var next seth.Log
+			l2l(c.State.Logs[i], &next)
+			out = append(out, next)
+		}
+	}
+	return out, nil
+}
+
+func (c *Chain) filterChanges(fd int) ([]seth.Log, error) {
+	if c.filters == nil {
+		return nil, fmt.Errorf("bad filter id %d", fd)
+	}
+	filt, ok := c.filters[fd]
+	if !ok {
+		return nil, fmt.Errorf("bad filter id %d", fd)
+	}
+
+	out := make([]seth.Log, 0)
+	sub := c.State.Logs[filt.lastlog:]
+	for i := range sub {
+		if filt.matches(sub[i]) {
+			var next seth.Log
+			l2l(sub[i], &next)
+			out = append(out, next)
+		}
+	}
+	filt.lastlog += len(sub)
+	return out, nil
+}
+
+func (c *Chain) deleteFilter(fd int) (bool, error) {
+	l := len(c.filters)
+	delete(c.filters, fd)
+	return len(c.filters) != l, nil
+}
+
+// staticCall handles eth_call.
 func (c *Chain) staticCall(a *callArgs, blocknum int64) (seth.Data, error) {
 	c = c.AtBlock(blocknum)
 	if c == nil {
@@ -246,7 +343,7 @@ func (c *Chain) send(a *seth.Transaction) (*seth.Hash, error) {
 func (c *Chain) receipt(h seth.Hash) (*seth.Receipt, error) {
 	b := c.State.Receipts.Get(h[:])
 	if b == nil {
-		return nil, fmt.Errorf("receipt %s not found", h)
+		return nil, fmt.Errorf("receipt %s not found", h.String())
 	}
 	r := new(seth.Receipt)
 	_, err := r.UnmarshalMsg(b)
