@@ -78,7 +78,7 @@ func frecv(f *Filter) {
 		goto done
 	}
 	for {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(time.Second)
 		select {
 		case <-f.exit:
 			ticker.Stop()

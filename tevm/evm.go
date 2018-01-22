@@ -1,6 +1,7 @@
 package tevm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
@@ -475,7 +476,37 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 type Chain struct {
 	State      State
 	block2snap map[int64]int
+	filters    map[int]*filter
+	filtcount  int
 	mu         sync.Mutex
+}
+
+type filter struct {
+	from, to blocknum      // block range to inspect
+	addr     *seth.Address // address of contract to watch
+	topics   []*seth.Hash  // topics to match
+	lastlog  int           // last log index inspected
+}
+
+func (f *filter) matches(log *types.Log) bool {
+	if (f.from >= 0 && log.BlockNumber < uint64(f.from)) || (f.to >= 0 && log.BlockNumber > uint64(f.to)) {
+		return false
+	}
+	if f.addr != nil && log.Address != common.Address(*f.addr) {
+		return false
+	}
+	for i := range f.topics {
+		if f.topics[i] == nil {
+			continue
+		}
+		if len(log.Topics) <= i {
+			return false
+		}
+		if !bytes.Equal(log.Topics[i][:], f.topics[i][:]) {
+			return false
+		}
+	}
+	return true
 }
 
 // Copy returns a new logical copy of the chain.
@@ -884,6 +915,10 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 	bh := n2h(uint64(*b.Number) | (uint64(len(b.Transactions)) << 48))
 	tx.Hash = seth.HashBytes(bh[:])
 	h = tx.Hash
+
+	for _, l := range c.State.Logs[l0:] {
+		copy(l.TxHash[:], tx.Hash[:])
+	}
 
 	rx := &seth.Receipt{
 		Hash:       tx.Hash,

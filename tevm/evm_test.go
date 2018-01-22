@@ -136,6 +136,9 @@ func TestChainSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// we don't expect filters to carry over
+	chain.filters = nil
+
 	if !reflect.DeepEqual(chain, chain2) {
 		t.Fatal("chain state did not match:\n", chain, "\n", chain2)
 	}
