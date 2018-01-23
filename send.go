@@ -327,6 +327,11 @@ func DecodeABI(v []byte, args ...interface{}) error {
 		// or handling variable-length types
 		did := true
 		switch v := v.(type) {
+		case *Data:
+			if len(*v) < 32 {
+				*v = make([]byte, 32)
+			}
+			copy(*v, cur)
 		case *Address:
 			copy(v[:], cur[12:])
 		case *Int:

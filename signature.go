@@ -85,6 +85,22 @@ func (z *Signature) parts() (r, s big.Int, v int, ok bool) {
 	return
 }
 
+// CurvePoint takes the x-coordinate of a secp256k1
+// curve point and computes the corresponding y-coordinate.
+// "v" should indicate the low bit of the y-coordinate.
+func CurvePoint(x *big.Int, y *big.Int, v int) {
+	// the curve is y^2 = x^3 + B
+	y.Mul(x, x)
+	y.Mul(y, x)
+	y.Add(y, params.B)
+	// for secp256k1, sqrt(x) = x^((p+1)/4)
+	y.Exp(y, curve.QPlus1Div4(), params.P) // |y| = sqrt(x^3 + B)
+	if y.Bit(0) != uint(v)&1 {
+		// negate if the signedness is wrong
+		y.Sub(params.P, y)
+	}
+}
+
 // Recover validates the signature and returns a public key given the hash.
 func (z *Signature) Recover(hash *Hash) (*PublicKey, error) {
 	var e big.Int
@@ -96,13 +112,7 @@ func (z *Signature) Recover(hash *Hash) (*PublicKey, error) {
 		return nil, errors.New("invalid signature")
 	}
 
-	ry.Mul(&r, &r)
-	ry.Mul(&ry, &r)
-	ry.Add(&ry, params.B)
-	ry.Exp(&ry, curve.QPlus1Div4(), params.P)
-	if ry.Bit(0) != uint(v) {
-		ry.Sub(params.P, &ry)
-	}
+	CurvePoint(&r, &ry, v)
 
 	ri.ModInverse(&r, order)
 	si.Mul(&ri, &s)
