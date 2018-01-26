@@ -474,10 +474,14 @@ func (s *gethState) ForEachStorage(addr common.Address, fn func(a, v common.Hash
 // are not threadsafe and must not be accessed concurrently. The methods on
 // this type are threadsafe.
 type Chain struct {
+	// Debugf, if non-nil, is used to log debugging information
+	// about transactions being executed, mined, etc.
+	Debugf     func(format string, args ...interface{})
 	State      State
 	block2snap map[int64]int
 	filters    map[int]*filter
 	filtcount  int
+	pendingrx  []*seth.Receipt // receipts for transactions in the pending block
 	mu         sync.Mutex
 }
 
@@ -564,6 +568,7 @@ func (c *Chain) AtBlock(n int64) *Chain {
 
 	cc := new(Chain)
 	c.State.atSnap(snap, &cc.State)
+	cc.Debugf = c.Debugf
 	cc.State.Pending = nb
 	cc.block2snap = c.block2snap
 	return cc
@@ -876,6 +881,11 @@ func encode(v msgp.Marshaler) []byte {
 	return b
 }
 
+func pretty(v interface{}) []byte {
+	buf, _ := json.MarshalIndent(v, "", "\t")
+	return buf
+}
+
 // Mine executes a transaction and returns
 // the return value of the transaction (if any) and the
 // transaction hash. Unlike the other methods of executing
@@ -886,6 +896,14 @@ func encode(v msgp.Marshaler) []byte {
 // rather than offering all of the gas in the block to the transaction,
 // which more faithfully mimics the behavior of an actual ethereum node.
 func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) {
+	b := c.State.Pending
+
+	// make up a tx hash:
+	// combine block number and transaction index deterministically
+	bh := n2h(uint64(*b.Number) | (uint64(len(b.Transactions)) << 48))
+	tx.Hash = seth.HashBytes(bh[:])
+	h = tx.Hash
+
 	l0 := len(c.State.Logs)
 
 	var gas uint64
@@ -903,18 +921,12 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 	}
 
 	used := uint64(tx.Gas) - gas
-	b := c.State.Pending
 	b.GasUsed += seth.Uint64(used)
 	idx := new(seth.Uint64)
 	*idx = seth.Uint64(len(b.Transactions))
 	tx.TxIndex = idx
 	tx.Block = *b.Hash
 	tx.BlockNumber = *b.Number
-
-	// tx hash is txidx as high 16 bits and block number as low 48 bits
-	bh := n2h(uint64(*b.Number) | (uint64(len(b.Transactions)) << 48))
-	tx.Hash = seth.HashBytes(bh[:])
-	h = tx.Hash
 
 	for _, l := range c.State.Logs[l0:] {
 		copy(l.TxHash[:], tx.Hash[:])
@@ -932,9 +944,10 @@ func (c *Chain) Mine(tx *seth.Transaction) (ret []byte, h seth.Hash, err error) 
 		rx.Address = new(seth.Address)
 		copy(rx.Address[:], addr[:])
 	}
+
 	b.Transactions = append(b.Transactions, js(&tx.Hash))
+	c.pendingrx = append(c.pendingrx, rx)
 	c.State.Transactions.Insert(tx.Hash[:], encode(tx))
-	c.State.Receipts.Insert(rx.Hash[:], encode(rx))
 	return
 }
 
@@ -953,10 +966,19 @@ func js(v interface{}) []byte {
 func (c *Chain) Seal() {
 	b := c.State.Pending
 
+	// for all transactions in the block,
+	// produce a transaction receipt
+	for i := range c.pendingrx {
+		rx := c.pendingrx[i]
+		copy(rx.BlockHash[:], b.Hash[:])
+		c.State.Receipts.Insert(rx.Hash[:], encode(rx))
+	}
+	c.pendingrx = c.pendingrx[:0]
+
 	// seal the current state
 	c.block2snap[int64(*b.Number)] = (*gethState)(&c.State).Snapshot()
-
 	c.State.Blocks.Insert(b.Hash[:], encode(b))
+
 	n := seth.Uint64(uint64(*b.Number) + 1)
 	h := seth.Hash(n2h(uint64(n)))
 	c.State.Pending = &seth.Block{
