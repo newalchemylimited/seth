@@ -93,19 +93,27 @@ func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
 		return errors.New(req.Method + ": not enough params")
 	}
 
+	if c.Debugf != nil {
+		c.Debugf("request:\n%s\n", pretty(req))
+	}
+
 	c.mu.Lock()
 	ret, err := c.execute(req.Method, req.Params)
+	c.mu.Unlock()
 	if err != nil {
-		c.mu.Unlock()
 		res.Result = nil
 		res.Error.Code = -1 // FIXME
 		res.Error.Message = err.Error()
 		res.Error.Data = nil
-		return nil
+		err = nil
+	} else {
+		err = gross(ret, &res.Result)
 	}
-	c.mu.Unlock()
 
-	return gross(ret, &res.Result)
+	if c.Debugf != nil {
+		c.Debugf("response:\n%s\n", pretty(res))
+	}
+	return err
 }
 
 func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, error) {
