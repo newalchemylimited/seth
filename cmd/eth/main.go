@@ -23,15 +23,15 @@ var subcommands = map[string]*cmd{
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: eth <cmd> <args...>")
-	fmt.Fprintln(os.Stderr, "subcommands:")
+	fmt.Fprintln(os.Stdout, "usage: eth <cmd> <args...>")
+	fmt.Fprintln(os.Stdout, "subcommands:")
 	var out []string
 	for name, c := range subcommands {
-		out = append(out, fmt.Sprintf("%s %s", name, c.desc))
+		out = append(out, fmt.Sprintf("\t%s\t\t%s", name, c.desc))
 	}
 	sort.Strings(out)
 	for i := range out {
-		fmt.Fprintln(os.Stderr, out[i])
+		fmt.Fprintln(os.Stdout, out[i])
 	}
 	os.Exit(1)
 }
