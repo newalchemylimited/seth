@@ -20,6 +20,7 @@ func fatalf(f string, args ...interface{}) {
 
 var subcommands = map[string]*cmd{
 	"balance": cmdbal,
+	"block":   cmdblock,
 }
 
 func usage() {
