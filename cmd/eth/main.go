@@ -10,7 +10,7 @@ import (
 type cmd struct {
 	desc string              // command description
 	do   func(args []string) // do it
-	fs   *flag.FlagSet
+	fs   flag.FlagSet
 }
 
 func fatalf(f string, args ...interface{}) {
@@ -18,7 +18,7 @@ func fatalf(f string, args ...interface{}) {
 	os.Exit(1)
 }
 
-var subcommands = map[string]cmd{
+var subcommands = map[string]*cmd{
 	"balance": cmdbal,
 }
 

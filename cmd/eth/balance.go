@@ -9,15 +9,15 @@ import (
 	"github.com/newalchemylimited/seth/cc"
 )
 
-var cmdbal = cmd{
+var cmdbal = &cmd{
 	desc: "get the balance of an account",
 	do:   getbal,
-	fs:   flag.NewFlagSet("balance", flag.ExitOnError),
 }
 
 var hexbalance bool
 
 func init() {
+	cmdbal.fs.Init("balance", flag.ExitOnError)
 	cmdbal.fs.BoolVar(&hexbalance, "x", false, "print balance in hex")
 }
 
