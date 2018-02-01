@@ -234,6 +234,13 @@ func (c *Client) Call(opts *CallOpts) (tx Hash, err error) {
 	return
 }
 
+// RawCall makes a transaction call using the given CallOpts.
+func (c *Client) RawCall(raw []byte) (tx Hash, err error) {
+	buf, _ := json.Marshal(Data(raw))
+	err = c.Do("eth_sendRawTransaction", []json.RawMessage{buf}, &tx)
+	return
+}
+
 // EstimateGas estimates the gas cost of mining this call into the blockchain.
 func (c *Client) EstimateGas(opts *CallOpts) (gas Int, err error) {
 	buf, _ := json.Marshal(opts)
