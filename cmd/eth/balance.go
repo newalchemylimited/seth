@@ -15,10 +15,12 @@ var cmdbal = &cmd{
 }
 
 var hexbalance bool
+var decbalance bool
 
 func init() {
 	cmdbal.fs.Init("balance", flag.ExitOnError)
 	cmdbal.fs.BoolVar(&hexbalance, "x", false, "print balance in hex")
+	cmdbal.fs.BoolVar(&decbalance, "d", false, "print balance as an integer")
 }
 
 func getbal(args []string) {
@@ -39,6 +41,10 @@ func getbal(args []string) {
 		}
 		if hexbalance {
 			fmt.Println(bal.String())
+			continue
+		} else if decbalance {
+			b := ((big.Int)(bal))
+			fmt.Println(b.String())
 			continue
 		}
 		amt := cc.Amount{"ETH", (big.Int)(bal)}
