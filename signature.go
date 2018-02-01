@@ -26,6 +26,10 @@ type Signature [65]byte
 // NewSignature constructs a signature from r, s, and v.
 func NewSignature(r, s *big.Int, v int) *Signature {
 	sig := new(Signature)
+	if s.Cmp(halforder) > 0 {
+		v ^= 1
+		s = new(big.Int).Sub(order, s)
+	}
 	copypad(sig[0:32], r.Bytes())
 	copypad(sig[32:64], s.Bytes())
 	sig[64] = byte(v)
