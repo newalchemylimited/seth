@@ -31,9 +31,9 @@ type Keyfile struct {
 		KDFParams    json.RawMessage `json:"kdfparams"`
 		MAC          string          `json:"mac"`
 	} `json:"crypto"`
-	Address Address           `json:"address,omitempty"`
-	Name    string            `json:"name"`
-	Meta    map[string]string `json:"meta"`
+	Address string          `json:"address,omitempty"`
+	Name    string          `json:"name"`
+	Meta    json.RawMessage `json:"meta"`
 }
 
 func (k *Keyfile) ciphertext() ([]byte, error) {
@@ -174,11 +174,14 @@ func (k *Keyfile) Private(passphrase []byte) (*PrivateKey, error) {
 	}
 	priv := new(PrivateKey)
 	copy(priv[:], ciphertext)
-	var zeroaddr Address
-	if k.Address != zeroaddr {
+	if k.Address != "" {
+		want, err := hex.DecodeString(k.Address)
+		if err != nil {
+			return nil, fmt.Errorf("bad address field %q: %s", k.Address, err)
+		}
 		addr := priv.Address()
-		if !bytes.Equal(addr[:], k.Address[:]) {
-			return nil, fmt.Errorf("derived address %q; want address %q", addr, &k.Address)
+		if !bytes.Equal(addr[:], want) {
+			return nil, fmt.Errorf("derived address %q; want address %q", addr, want)
 		}
 	}
 	return priv, nil

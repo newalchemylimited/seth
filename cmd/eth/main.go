@@ -19,8 +19,9 @@ func fatalf(f string, args ...interface{}) {
 }
 
 var subcommands = map[string]*cmd{
-	"balance": cmdbal,
-	"block":   cmdblock,
+	"balance":  cmdbal,
+	"block":    cmdblock,
+	"accounts": cmdaccounts,
 }
 
 func usage() {
