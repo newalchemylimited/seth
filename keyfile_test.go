@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
-// test vector from https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
-const keyfilejson = `{
+func TestKeyfile(t *testing.T) {
+	// test vectors from https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
+	testcases := []string{
+		`{
     "crypto" : {
         "cipher" : "aes-128-ctr",
         "cipherparams" : {
@@ -25,23 +27,45 @@ const keyfilejson = `{
     },
     "id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
     "version" : 3
-}`
-
-func TestKeyfile(t *testing.T) {
-	var k Keyfile
-	if err := json.Unmarshal([]byte(keyfilejson), &k); err != nil {
-		t.Fatal(err)
+}`,
+		`{
+    "crypto" : {
+        "cipher" : "aes-128-ctr",
+        "cipherparams" : {
+            "iv" : "83dbcc02d8ccb40e466191a123791e0e"
+        },
+        "ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+        "kdf" : "scrypt",
+        "kdfparams" : {
+            "dklen" : 32,
+            "n" : 262144,
+            "r" : 1,
+            "p" : 8,
+            "salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+        },
+        "mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+    },
+    "id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+    "version" : 3
+}`,
 	}
 
-	priv, err := k.Private([]byte("testpassword"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, keyfilejson := range testcases {
+		var k Keyfile
+		if err := json.Unmarshal([]byte(keyfilejson), &k); err != nil {
+			t.Fatal(err)
+		}
 
-	var want Address
-	want.FromString("0x008aeeda4d805471df9b2a5b0f38a0c3bcba786b")
-	addr := priv.Address()
-	if !bytes.Equal(want[:], addr[:]) {
-		t.Fatalf("didn't derive the right address: %x != %x", want[:], addr[:])
+		priv, err := k.Private([]byte("testpassword"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var want Address
+		want.FromString("0x008aeeda4d805471df9b2a5b0f38a0c3bcba786b")
+		addr := priv.Address()
+		if !bytes.Equal(want[:], addr[:]) {
+			t.Fatalf("didn't derive the right address: %x != %x", want[:], addr[:])
+		}
 	}
 }

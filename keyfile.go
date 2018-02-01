@@ -15,6 +15,7 @@ import (
 
 	"github.com/newalchemylimited/seth/keccak"
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/scrypt"
 )
 
 // Keyfile represents an Ethereum key file
@@ -74,10 +75,31 @@ func pbkdf2Derive(pass []byte, jsparams json.RawMessage) ([]byte, error) {
 	return pbkdf2.Key(pass, salt, p.Iters, p.Keylen, h), nil
 }
 
+func scryptDerive(pass []byte, jsparams json.RawMessage) ([]byte, error) {
+	type params struct {
+		Keylen int    `json:"dklen"`
+		N      int    `json:"n"`
+		R      int    `json:"r"`
+		P      int    `json:"p"`
+		Salt   string `json:"salt"`
+	}
+	p := new(params)
+	if err := json.Unmarshal(jsparams, p); err != nil {
+		return nil, fmt.Errorf("parsing scrypt params: %q", err)
+	}
+	salt, err := hex.DecodeString(p.Salt)
+	if err != nil {
+		return nil, err
+	}
+	return scrypt.Key(pass, salt, p.N, p.R, p.P, p.Keylen)
+}
+
 func (k *Keyfile) kdf(pass []byte) ([]byte, error) {
 	switch strings.ToLower(k.Crypto.KDF) {
 	case "pbkdf2":
 		return pbkdf2Derive(pass, k.Crypto.KDFParams)
+	case "scrypt":
+		return scryptDerive(pass, k.Crypto.KDFParams)
 	default:
 		return nil, fmt.Errorf("unimplemented KDF %q", k.Crypto.KDF)
 	}
@@ -143,7 +165,7 @@ func (k *Keyfile) Private(passphrase []byte) (*PrivateKey, error) {
 	case "aes-128-ctr":
 		decipher = aes128ctrDecipher
 	default:
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("unimplemented cipher %q", k.Crypto.Cipher)
 	}
 
 	err = decipher(key, ciphertext, k.Crypto.CipherParams)
