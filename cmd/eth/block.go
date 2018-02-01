@@ -35,20 +35,16 @@ func blockrange(c *seth.Client, spec string) {
 	if len(split) != 2 {
 		fatalf("bad block range specifier %q\n", spec)
 	}
-	var err error
-	var start, diff int64
-	switch split[0] {
-	case "pending":
-		start = pending(c)
-	case "latest":
-		start = latest(c)
-	default:
-		start, err = strconv.ParseInt(split[0], 0, 64)
-		if err != nil {
-			fatalf("couldn't parse %q as an integer: %s\n", split[0], err)
-		}
+
+	// resolve this block number into
+	// an absolute number; we may actually
+	// have to fetch the block to do this
+	start := blocknum(split[0])
+	if start < 0 {
+		start = int64(*(getblock(c, start, false).Number))
 	}
-	diff, err = strconv.ParseInt(split[1], 0, 64)
+
+	diff, err := strconv.ParseInt(split[1], 0, 64)
 	if err != nil {
 		fatalf("couldn't parse %q as an integer: %s\n", split[1], err)
 	}
@@ -58,11 +54,7 @@ func blockrange(c *seth.Client, spec string) {
 	}
 
 	for i := int64(0); i < diff; i++ {
-		b, err := c.GetBlock(op(start, i), true)
-		if err != nil {
-			fatalf("getting block: %s\n", err)
-		}
-		showblock(b)
+		showblock(getblock(c, op(start, i), true))
 	}
 }
 
@@ -73,29 +65,10 @@ func block(args []string) {
 
 	c := client()
 	for i := range args {
-		var bn int64
-		var err error
-
 		if strings.ContainsAny(args[i], "+-") {
 			blockrange(c, args[i])
-			continue
+		} else {
+			showblock(getblock(c, blocknum(args[i]), true))
 		}
-
-		switch args[i] {
-		case "pending":
-			bn = seth.Pending
-		case "latest":
-			bn = seth.Latest
-		default:
-			bn, err = strconv.ParseInt(args[i], 0, 64)
-			if err != nil {
-				fatalf("can't parse %q: %s", args[i], err)
-			}
-		}
-		b, err := c.GetBlock(bn, true)
-		if err != nil {
-			fatalf("getting block %d: %s", bn, err)
-		}
-		showblock(b)
 	}
 }
