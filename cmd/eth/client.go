@@ -29,3 +29,20 @@ func client() *seth.Client {
 	os.Exit(1)
 	return nil
 }
+
+func latest(c *seth.Client) int64 {
+	b, err := c.GetBlock(seth.Latest, false)
+	if err != nil {
+		fatalf("getting block: %s\n", err)
+	}
+	return int64(*b.Number)
+}
+
+func pending(c *seth.Client) int64 {
+	b, err := c.GetBlock(seth.Pending, false)
+	if err != nil {
+		fatalf("getting block: %s\n", err)
+	}
+	return int64(*b.Number)
+
+}
