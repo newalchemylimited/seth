@@ -40,8 +40,8 @@ func keypaths() []string {
 		}
 	case "linux":
 		return []string{
-			filepath.Join(h, ".parity/keys"),       // parity
-			filepath.Join(h, ".ethereum/keystore"), // geth
+			filepath.Join(h, ".parity/keys/ethereum"), // parity
+			filepath.Join(h, ".ethereum/keystore"),    // geth
 		}
 	}
 	return nil
@@ -55,23 +55,31 @@ type keydesc struct {
 
 func keys() []keydesc {
 	var out []keydesc
-	paths := keypaths()
-	for _, p := range paths {
-		p = filepath.Join(p, "*")
-		files, err := filepath.Glob(p)
+	for _, p := range keypaths() {
+		fis, err := ioutil.ReadDir(p)
 		if err != nil {
 			fatalf("getting key files: %s", err)
 		}
-		for _, fp := range files {
+		for _, fi := range fis {
+			if fi.IsDir() {
+				continue
+			}
+			fp := filepath.Join(p, fi.Name())
 			kf := new(seth.Keyfile)
 			buf, err := ioutil.ReadFile(fp)
 			if err != nil {
+				debugf("keyfile scan: can't read file %q %s", fp, err)
+				continue
+			}
+			if len(buf) == 0 || buf[0] != '{' {
+				debugf("keyfile scan: file %q doesn't look like json", fp)
 				continue
 			}
 			if err := json.Unmarshal(buf, kf); err == nil &&
 				kf.Address != "" &&
 				kf.ID != "" &&
 				strings.HasSuffix(fp, kf.ID) {
+				debugf("using keyfile %q", fp)
 				kd := keydesc{
 					path: fp,
 					kf:   kf,

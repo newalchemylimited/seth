@@ -18,10 +18,25 @@ func fatalf(f string, args ...interface{}) {
 	os.Exit(1)
 }
 
+var verbose bool
+
 var subcommands = map[string]*cmd{
 	"balance":  cmdbal,
 	"block":    cmdblock,
 	"accounts": cmdaccounts,
+}
+
+// debugf prints lines prefixed with '+ ' if
+// the -v flag is passed as a flag
+func debugf(f string, args ...interface{}) {
+	if !verbose {
+		return
+	}
+	if len(f) == 0 || f[len(f)-1] != '\n' {
+		f += "\n"
+	}
+	f = "+ " + f
+	fmt.Printf(f, args...)
 }
 
 func usage() {
@@ -48,6 +63,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[1])
 		usage()
 	}
+	// every command gets a "-v" flag for debugf output
+	cmd.fs.BoolVar(&verbose, "v", false, "verbose")
 	cmd.fs.Parse(args[2:])
 	cmd.do(cmd.fs.Args())
 }
