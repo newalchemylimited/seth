@@ -4,12 +4,12 @@ import (
 	"fmt"
 )
 
-var cmdaccounts = &cmd{
-	desc: "show available accounts",
-	do:   accounts,
+var cmdkeylist = &cmd{
+	desc: "show available key files",
+	do:   keylist,
 }
 
-func accounts(args []string) {
+func keylist(args []string) {
 	kds := keys()
 	for _, kd := range kds {
 		uuid := "none"

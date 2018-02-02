@@ -21,9 +21,9 @@ func fatalf(f string, args ...interface{}) {
 var verbose bool
 
 var subcommands = map[string]*cmd{
-	"balance":  cmdbal,
-	"block":    cmdblock,
-	"accounts": cmdaccounts,
+	"balance": cmdbal,
+	"block":   cmdblock,
+	"keys":    cmdkeylist,
 }
 
 // debugf prints lines prefixed with '+ ' if
