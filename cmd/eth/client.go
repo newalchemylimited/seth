@@ -12,18 +12,22 @@ import (
 func client() *seth.Client {
 	url := os.Getenv("SETH_URL")
 	if url == "" {
+		debugf("SETH_URL unset; trying to dial local client")
 		return seth.NewClient(seth.IPCDial)
 	}
 	if strings.HasPrefix(url, "http") {
 		var t seth.Transport
 		if strings.Contains(url, "api.infura.io") {
+			debugf("interpreted %q as api.infura.io", url)
 			t = seth.InfuraTransport{}
 		} else {
+			debugf("using http transport %q", url)
 			t = &seth.HTTPTransport{URL: url}
 		}
 		return seth.NewClientTransport(t)
 	}
 	if _, err := os.Stat(url); err == nil {
+		debugf("using IPC path %s", url)
 		return seth.NewClient(seth.IPCPath(url))
 	}
 	fmt.Fprintln(os.Stderr, "cannot derive client from SETH_URL=%q\n", url)
