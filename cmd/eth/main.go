@@ -24,6 +24,7 @@ var subcommands = map[string]*cmd{
 	"balance": cmdbal,
 	"block":   cmdblock,
 	"keys":    cmdkeylist,
+	"sign":    cmdsign,
 }
 
 // debugf prints lines prefixed with '+ ' if
