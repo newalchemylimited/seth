@@ -2,14 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/newalchemylimited/seth"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func home() string {
@@ -90,4 +93,46 @@ func keys() []keydesc {
 		}
 	}
 	return out
+}
+
+// produce a key-matching regular expression from the environment
+func keyspec() string {
+	// TODO: more than this
+	spec := os.Getenv("ETHER_ADDR")
+	if spec == "" {
+		fatalf("no key spec provided\n")
+	}
+	return spec
+}
+
+// signer chooses a signer based on the program state
+func signer() func(h *seth.Hash) *seth.Signature {
+	var matched *keydesc
+	spec := keyspec()
+	re, err := regexp.Compile(spec)
+	if err != nil {
+		fatalf("bad keyspec %q\n", err)
+	}
+	for _, kd := range keys() {
+		if re.MatchString(kd.addr.String()) ||
+			(kd.kf != nil && re.MatchString(kd.kf.ID)) {
+			if matched != nil {
+				fatalf("ambiguous key spec %q matches more than one key\n", spec)
+			}
+			matched = &kd
+		}
+	}
+	if matched == nil {
+		fatalf("keyspec %q doesn't match any keys\n", spec)
+	}
+	if matched.kf == nil {
+		fatalf("don't know how to sign for address %s", matched.addr)
+	}
+	fmt.Fprintln(os.Stderr, "enter key passphrase:")
+	pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	priv, err := matched.kf.Private(pass)
+	if err != nil {
+		fatalf("couldn't derive private key: %s\n", err)
+	}
+	return priv.Sign
 }
