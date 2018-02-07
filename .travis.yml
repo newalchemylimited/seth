@@ -13,9 +13,8 @@ before_install:
   - sudo apt-get -y install solc
   - wget https://developers.yubico.com/YubiHSM2/Releases/yubihsm2-sdk-1.0.1-ubuntu1404-amd64.tar.gz
   - mkdir $HOME/yubihsm2
-  - tar -xzf yubihsm2-sdk-1.0.1-ubuntu1404-amd64.tar.gz -C $HOME/yubihsm2
+  - tar -xzf yubihsm2-sdk-1.0.1-ubuntu1404-amd64.tar.gz -C $HOME
+  - sudo dpkg -i $HOME/yubihsm2-sdk/*.deb
 
 script:
-  - export CGO_LDFLAGS=-L$HOME/yubihsm2/lib/
-  - export CGO_CFLAGS=-I$HOME/yubihsm2/include/
   - go test -v -tags yubihsm ./...
