@@ -99,13 +99,20 @@ func rlpEncodeSignedTx(t *Transaction, sig *Signature) []byte {
 	return res.Bytes()
 }
 
-type Signer func(*Hash) *Signature
+type Signer func(*Hash) (*Signature, error)
 
-// RLP encode a given transaction and sign the transaction hash with the passed Signer function.
+// KeySigner is sugar that returns a Signer from a PrivateKey.
+func KeySigner(k *PrivateKey) Signer {
+	return func(h *Hash) (*Signature, error) {
+		return k.Sign(h), nil
+	}
+}
+
+// SignTransaction produces a signed, serialized 'raw' transaction
+// from the given transaction and signer.
 func SignTransaction(t *Transaction, sign Signer) ([]byte, error) {
 	var data, res bytes.Buffer
 	encodeTransaction(&data, t)
-
 	rlpEncodeInt(&data, 1)
 	rlpEncodeInt(&data, 0)
 	rlpEncodeInt(&data, 0)
@@ -113,5 +120,9 @@ func SignTransaction(t *Transaction, sign Signer) ([]byte, error) {
 	rlpEncodeList(&res, data.Bytes())
 
 	hash := HashBytes(res.Bytes())
-	return rlpEncodeSignedTx(t, sign(&hash)), nil
+	sig, err := sign(&hash)
+	if err != nil {
+		return nil, err
+	}
+	return rlpEncodeSignedTx(t, sig), nil
 }

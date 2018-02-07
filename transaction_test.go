@@ -174,8 +174,8 @@ func TestSignedTxMarshal(t *testing.T) {
 
 	runEncTests(t, signedTxTests, func(w io.Writer, val interface{}) {
 		tx := val.(sTx)
-		res, err := SignTransaction(tx.t, func(*Hash) *Signature {
-			return tx.s
+		res, err := SignTransaction(tx.t, func(*Hash) (*Signature, error) {
+			return tx.s, nil
 		})
 		if err != nil {
 			t.Fatal(err)
