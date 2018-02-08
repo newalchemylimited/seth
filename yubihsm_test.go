@@ -4,6 +4,7 @@ package seth
 
 import (
 	"crypto/rand"
+	"os"
 	"testing"
 
 	"github.com/newalchemylimited/seth/yubihsm"
@@ -18,7 +19,12 @@ func TestYubiHSM(t *testing.T) {
 	}
 	t.Log("hsm probe succeeded")
 
-	if err := hsm.Unlock([]byte("password")); err != nil {
+	pass := os.Getenv("HSM_PASS")
+	if pass == "" {
+		t.Skip("HSM_PASS unset")
+	}
+
+	if err := hsm.Unlock([]byte(pass)); err != nil {
 		t.Fatalf("couldn't unlock hsm: %s", err)
 	}
 

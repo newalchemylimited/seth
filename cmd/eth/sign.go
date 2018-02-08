@@ -70,10 +70,13 @@ func sign(args []string) {
 	}
 
 	fn := signer()
-	sig := fn(&h)
+	sig, err := fn(&h)
+	if err != nil {
+		fatalf("fatal error signing: %s\n", err)
+	}
 	switch {
 	case sighex:
-		_, err := io.WriteString(os.Stdout, hex.EncodeToString(sig[:]))
+		_, err := io.WriteString(os.Stdout, hex.EncodeToString(sig[:])+"\n")
 		if err != nil {
 			fatalf("%s\n", err)
 		}
