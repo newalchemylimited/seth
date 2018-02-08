@@ -53,7 +53,9 @@ func keypaths() []string {
 type keydesc struct {
 	path string        // the "path" of the key (which may or may not be a filesystem path)
 	addr seth.Address  // the actual ethereum address
+	id   string        // key "id" displayed for key listing
 	kf   *seth.Keyfile // the keyfile, if there is one associated
+	hsm  seth.HSM      // the hsm, if there is one associated
 }
 
 func keys() []keydesc {
@@ -86,10 +88,26 @@ func keys() []keydesc {
 				kd := keydesc{
 					path: fp,
 					kf:   kf,
+					id:   kf.ID,
 				}
 				kd.addr.FromString("0x" + kf.Address)
 				out = append(out, kd)
 			}
+		}
+	}
+
+	for i, h := range hsmprobe() {
+		pks, err := h.Pubkeys()
+		if err != nil {
+			debugf("hsm %d can't list pubkeys: %s (passphrase not entered yet?)", i, err)
+			continue
+		}
+		for i := range pks {
+			out = append(out, keydesc{
+				id:   pks[i].ID,
+				addr: *pks[i].Public.Address(),
+				hsm:  h,
+			})
 		}
 	}
 	return out
@@ -105,8 +123,18 @@ func keyspec() string {
 	return spec
 }
 
+// prompt for a passphrase and read it securely
+func passpromptf(f string, args ...interface{}) []byte {
+	fmt.Fprintf(os.Stderr, f, args...)
+	pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		fatalf("couldn't read passphrase: %s\n", err)
+	}
+	return pass
+}
+
 // signer chooses a signer based on the program state
-func signer() func(h *seth.Hash) *seth.Signature {
+func signer() seth.Signer {
 	var matched *keydesc
 	spec := keyspec()
 	re, err := regexp.Compile(spec)
@@ -114,8 +142,7 @@ func signer() func(h *seth.Hash) *seth.Signature {
 		fatalf("bad keyspec %q\n", err)
 	}
 	for _, kd := range keys() {
-		if re.MatchString(kd.addr.String()) ||
-			(kd.kf != nil && re.MatchString(kd.kf.ID)) {
+		if re.MatchString(kd.addr.String()) || re.MatchString(kd.id) {
 			if matched != nil {
 				fatalf("ambiguous key spec %q matches more than one key\n", spec)
 			}
@@ -125,14 +152,29 @@ func signer() func(h *seth.Hash) *seth.Signature {
 	if matched == nil {
 		fatalf("keyspec %q doesn't match any keys\n", spec)
 	}
-	if matched.kf == nil {
-		fatalf("don't know how to sign for address %s", matched.addr)
+
+	// keyfile signer
+	if matched.kf != nil {
+		priv, err := matched.kf.Private(passpromptf("enter key passphrase:\n"))
+		if err != nil {
+			fatalf("couldn't derive private key: %s\n", err)
+		}
+		return seth.KeySigner(priv)
 	}
-	fmt.Fprintln(os.Stderr, "enter key passphrase:")
-	pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	priv, err := matched.kf.Private(pass)
-	if err != nil {
-		fatalf("couldn't derive private key: %s\n", err)
+
+	// hsm signer
+	if matched.hsm != nil {
+		// hsm must already be unlocked for
+		// the keys to be listed
+		s, err := matched.hsm.Signer(&seth.HSMKey{
+			ID: matched.id,
+		})
+		if err != nil {
+			fatalf("internal error: matching hsm key: %s\n", err)
+		}
+		return s
 	}
-	return priv.Sign
+
+	fatalf("internal error: don't know how to sign with that key...\n")
+	return nil
 }

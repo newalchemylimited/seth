@@ -12,10 +12,6 @@ var cmdkeylist = &cmd{
 func keylist(args []string) {
 	kds := keys()
 	for _, kd := range kds {
-		uuid := "none"
-		if kd.kf != nil {
-			uuid = kd.kf.ID
-		}
-		fmt.Println(uuid, kd.addr.String())
+		fmt.Printf("%36s %s\n", kd.id, kd.addr.String())
 	}
 }

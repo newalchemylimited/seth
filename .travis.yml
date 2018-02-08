@@ -11,6 +11,11 @@ before_install:
   - sudo add-apt-repository -y ppa:ethereum/ethereum
   - sudo apt-get -y update
   - sudo apt-get -y install solc
+  - wget https://developers.yubico.com/YubiHSM2/Releases/yubihsm2-sdk-1.0.1-ubuntu1404-amd64.tar.gz
+  - mkdir $HOME/yubihsm2
+  - tar -xzf yubihsm2-sdk-1.0.1-ubuntu1404-amd64.tar.gz -C $HOME
+  - rm $HOME/yubihsm2-sdk/yubihsm-setup*
+  - sudo dpkg -i $HOME/yubihsm2-sdk/*.deb
 
 script:
-  - go test -v ./...
+  - go test -v -tags yubihsm ./...
