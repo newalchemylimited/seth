@@ -62,3 +62,11 @@ func getblock(c *seth.Client, num int64, txs bool) *seth.Block {
 	}
 	return b
 }
+
+func getcode(c *seth.Client, addr *seth.Address) []byte {
+	code, err := c.GetCode(addr)
+	if err != nil {
+		fatalf("getting code: %s\n", err)
+	}
+	return code
+}
