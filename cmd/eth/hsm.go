@@ -21,9 +21,8 @@ func hsmprobe() []seth.HSM {
 				hints = strings.Split(hstr, ",")
 			}
 			h := seth.FindHSM(p, hints...)
-			if h != nil {
-				debugf("probe for hsm %q succeeded", p)
-				hsms = append(hsms, h)
+			if h == nil {
+				continue
 			}
 			var pass []byte
 			if pstr := os.Getenv(strings.ToUpper(p) + "_PASS"); pstr != "" {
@@ -34,6 +33,8 @@ func hsmprobe() []seth.HSM {
 			if err := h.Unlock(pass); err != nil {
 				fatalf("unlock %s: %s", p, err)
 			}
+			debugf("probe for hsm %q succeeded", p)
+			hsms = append(hsms, h)
 		}
 	})
 	return hsms

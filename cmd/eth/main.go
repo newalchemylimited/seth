@@ -25,6 +25,8 @@ var subcommands = map[string]*cmd{
 	"block":   cmdblock,
 	"keys":    cmdkeylist,
 	"sign":    cmdsign,
+	"code":    cmdcode,
+	"jumptab": cmdjumptab,
 }
 
 // debugf prints lines prefixed with '+ ' if
@@ -37,7 +39,7 @@ func debugf(f string, args ...interface{}) {
 		f += "\n"
 	}
 	f = "+ " + f
-	fmt.Printf(f, args...)
+	fmt.Fprintf(os.Stderr, f, args...)
 }
 
 func usage() {
