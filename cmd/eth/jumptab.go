@@ -31,45 +31,65 @@ type jmpentry struct {
 
 // preimage is a list of common function selectors
 var preimage = []string{
+	"collect()",
+	"collect(address)",
+	"acceptOwnership()",
+	"allowance(address,address)",
+	"approve(address,uint256)",
+	"approveAndCall(address,uint256,bytes)",
 	"balanceOf(address)",
+	"burn(address,uint256)",
+	"changeOwner(address)",
+	"decimals()",
+	"deposit()",
+	"finalize()",
+	"finalized()",
+	"halt()",
+	"locked()",
+	"makeWallet()",
+	"mint(address,uint256)",
+	"name()",
+	"owner()",
+	"pause()",
+	"setPrice(uint256)",
+	"start()",
+	"sweep(address,uint256)",
+	"symbol()",
+	"tokenFallback(address,uint256,bytes)",
 	"totalSupply()",
 	"transfer(address,uint256)",
 	"transferFrom(address,address,uint256)",
-	"approve(address,uint256)",
-	"changeOwner(address)",
-	"acceptOwnership()",
-	"mint(address,uint256)",
-	"pause()",
-	"finalize()",
-	"name()",
-	"decimals()",
-	"owner()",
-	"finalized()",
-	"allowance(address,address)",
-	"locked()",
-	"burn(address,uint256)",
+	"version()",
 }
 
 // code sequences that are equivalent to
-//   (calldata[0] >> 224) & 0xffffffff
+//   (calldata[0] >> 224)
 var prefixes = []string{
-	// For some reason, _later_ versions of solc
-	// produce this code, despite the size regression...
-	//
 	// PUSH1 0x0 CALLDATALOAD PUSH29
 	// 0x100000000000000000000000000000000000000000000000000000000
 	// SWAP1 DIV PUSH4 0xFFFFFFFF AND
-	"7c0100000000000000000000000000000000000000000000000000000000900463ffffffff16",
+	"6000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16",
+
+	// same as above, with AND produced before instead of after calldata load
+	"63ffffffff6000357c0100000000000000000000000000000000000000000000000000000000900416",
+
+	// ... and another permutation of the above
+	// PUSH4 0xffffffff PUSH29 (1<<224) PUSH1 0x0 CALLDATALOAD DIV AND
+	"63ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416",
+
+	// like the first one, but omitting the superfluous AND
+	"6000357c01000000000000000000000000000000000000000000000000000000009004",
 
 	// PUSH4 0xffffffff
 	// PUSH1 0xe0 PUSH1 0x02 EXP
 	// PUSH1 0x00 CALLDATALOAD
 	// DIV AND
 	"63ffffffff60e060020a6000350416",
-}
 
-type jmpformat struct {
-	prefix, suffix string
+	// same as above, without superflous AND:
+	// PUSH1 0xe0 PUSH1 0x02 EXP
+	// PUSH1 0x00 CALLDATALOAD DIV
+	"60e060020a60003504",
 }
 
 func jumptab(args []string) {
