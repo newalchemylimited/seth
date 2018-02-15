@@ -172,7 +172,7 @@ func jumptab(args []string) {
 		if pwidth > 4 {
 			break // ???
 		}
-		copy(pushbytes[:], base[8:8+pwidth])
+		copy(pushbytes[4-pwidth:], base[8:8+pwidth])
 		if base[8+pwidth] != opjumpi {
 			break // ???
 		}
@@ -196,9 +196,9 @@ func jumptab(args []string) {
 		sigword := binary.LittleEndian.Uint32(entries[i].prefix[:])
 		sig := dict[sigword]
 		if sig == "" {
-			fmt.Printf("%x pc:%10d\n", entries[i].prefix[:], entries[i].jmpdest)
+			fmt.Printf("%x pc:%5d\n", entries[i].prefix[:], entries[i].jmpdest)
 		} else {
-			fmt.Printf("%x pc:%10d %s\n", entries[i].prefix[:], entries[i].jmpdest, sig)
+			fmt.Printf("%x pc:%5d %s\n", entries[i].prefix[:], entries[i].jmpdest, sig)
 		}
 	}
 }
