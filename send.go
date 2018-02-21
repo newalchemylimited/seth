@@ -253,11 +253,17 @@ func (c *Client) EstimateGas(opts *CallOpts) (gas Int, err error) {
 // the call is executed in the latest block. 'out' should be a type that can be
 // unmarshaled from the JSON representation of the return value of the function.
 func (c *Client) ConstCall(opts *CallOpts, out interface{}, pending bool) error {
-	buf, _ := json.Marshal(opts)
-	args := []json.RawMessage{buf, rawlatest}
+	bs := Latest
 	if pending {
-		args[1] = rawpending
+		bs = Pending
 	}
+	return c.ConstCallAt(opts, out, bs)
+}
+
+// ConstCallAt executes a call in the given block.
+func (c *Client) ConstCallAt(opts *CallOpts, out interface{}, block int64) error {
+	buf, _ := json.Marshal(opts)
+	args := []json.RawMessage{buf, itobs(block)}
 	return c.Do("eth_call", args, out)
 }
 
