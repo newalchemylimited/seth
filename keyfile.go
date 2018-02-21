@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -185,4 +186,68 @@ func (k *Keyfile) Private(passphrase []byte) (*PrivateKey, error) {
 		}
 	}
 	return priv, nil
+}
+
+func (p *PrivateKey) ToKeyfile(name string, pass []byte) *Keyfile {
+	kf := &Keyfile{
+		Version: 3,
+		Name:    name,
+	}
+	kf.Crypto.Cipher = "aes-128-ctr"
+	kf.Crypto.KDF = "scrypt"
+
+	iv := make([]byte, 16)
+	salt := make([]byte, 32)
+	if _, err := rand.Read(iv); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(salt); err != nil {
+		panic(err)
+	}
+
+	// for lack of a better idea...
+	h := keccak.New256()
+	h.Write(iv)
+	h.Write(salt)
+	kf.ID = hex.EncodeToString(h.Sum(nil)[:16])
+
+	kf.Crypto.CipherParams, _ = json.Marshal(map[string]interface{}{
+		"iv": hex.EncodeToString(iv),
+	})
+
+	const (
+		N = 262144
+		R = 1
+		P = 8
+	)
+
+	kf.Crypto.KDFParams, _ = json.Marshal(map[string]interface{}{
+		"dklen": 32,
+		"n":     N,
+		"r":     R,
+		"p":     P,
+		"salt":  hex.EncodeToString(salt),
+	})
+
+	key, err := scrypt.Key(pass, salt, N, R, P, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	ciphertext := make([]byte, 32)
+	blk, err := aes.NewCipher(key[:16])
+	if err != nil {
+		panic(err)
+	}
+
+	stream := cipher.NewCTR(blk, iv)
+	stream.XORKeyStream(ciphertext, p[:])
+	kf.Crypto.Ciphertext = hex.EncodeToString(ciphertext)
+
+	h = keccak.New256()
+	h.Write(key[len(key)-16:])
+	h.Write(ciphertext)
+	kf.Crypto.MAC = hex.EncodeToString(h.Sum(nil))
+
+	return kf
 }
