@@ -115,6 +115,36 @@ func TestChainBasic(t *testing.T) {
 	please(t, c.BalanceOf(&dumb).Int64() == 1e18)
 }
 
+// TestTransportBasic tests transport RPCs that aren't covered elsewhere.
+func TestTransportBasic(t *testing.T) {
+	chain := NewChain()
+	client := seth.NewClientTransport(chain)
+
+	// eth_protocolVersion
+	if _, err := client.ProtocolVersion(); err != nil {
+		t.Error(err)
+	}
+
+	// eth_syncing
+	if _, err := client.Syncing(); err != nil {
+		t.Error(err)
+	}
+
+	// eth_gasPrice
+	if p, err := client.GasPrice(); err != nil {
+		t.Error(err)
+	} else if p == 0 {
+		t.Fatal("gas price should be > 0")
+	}
+
+	// eth_blockNumber
+	if n, err := client.BlockNumber(); err != nil {
+		t.Error(err)
+	} else if n == 0 {
+		t.Fatal("block number should be > 0")
+	}
+}
+
 // Test that a chain can be JSON marshaled and recovered.
 func TestChainSerialization(t *testing.T) {
 	t.Parallel()

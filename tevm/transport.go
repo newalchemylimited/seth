@@ -89,10 +89,6 @@ func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
 	res.ID = req.ID
 	res.Version = req.Version
 
-	if len(req.Params) == 0 {
-		return errors.New(req.Method + ": not enough params")
-	}
-
 	if c.Debugf != nil {
 		c.Debugf("request:\n%s\n", pretty(req))
 	}
@@ -102,7 +98,7 @@ func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
 	c.mu.Unlock()
 	if err != nil {
 		res.Result = nil
-		res.Error.Code = -1 // FIXME
+		res.Error.Code = -32601
 		res.Error.Message = err.Error()
 		res.Error.Data = nil
 		err = nil
@@ -119,6 +115,26 @@ func (c *Chain) Execute(req *seth.RPCRequest, res *seth.RPCResponse) error {
 func (c *Chain) execute(method string, params []json.RawMessage) (interface{}, error) {
 	var b blocknum
 	switch method {
+	case "eth_protocolVersion":
+		if err := marshal(params); err != nil {
+			return nil, err
+		}
+		return seth.Uint64(63), nil
+	case "eth_syncing":
+		if err := marshal(params); err != nil {
+			return nil, err
+		}
+		return false, nil
+	case "eth_gasPrice":
+		if err := marshal(params); err != nil {
+			return nil, err
+		}
+		return seth.Uint64(16e9), nil
+	case "eth_blockNumber":
+		if err := marshal(params); err != nil {
+			return nil, err
+		}
+		return c.State.Pending.Number, nil
 	case "eth_call":
 		tx := new(callArgs)
 		if err := marshal(params, tx, &b); err != nil {
