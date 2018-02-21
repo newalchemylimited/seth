@@ -47,7 +47,7 @@ func getbal(args []string) {
 			fmt.Println(b.String())
 			continue
 		}
-		amt := cc.Amount{"ETH", (big.Int)(bal)}
+		amt := cc.Amount{Currency: "ETH", Amount: (big.Int)(bal)}
 		fmt.Println(amt.String())
 	}
 }

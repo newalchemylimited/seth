@@ -157,12 +157,12 @@ func generate(w io.Writer, c *seth.CompiledContract) {
 	// type decl
 	fmt.Fprintf(w, "type %s struct {\n", c.Name)
 	fmt.Fprintln(w, "\taddr  *seth.Address")
-	fmt.Fprintln(w, "\ts     *seth.Sender\n}\n")
+	fmt.Fprintln(w, "\ts     *seth.Sender\n}")
 
 	// constructor
 	fmt.Fprintf(w, "func New%s(addr *seth.Address, sender *seth.Sender) *%[1]s {\n", c.Name)
 	fmt.Fprintf(w, "\treturn &%s{addr: addr, s: sender}\n", c.Name)
-	fmt.Fprintln(w, "}\n")
+	fmt.Fprintln(w, "}")
 
 	// methods
 	for i := range c.ABI {

@@ -30,7 +30,7 @@ func client() *seth.Client {
 		debugf("using IPC path %s", url)
 		return seth.NewClient(seth.IPCPath(url))
 	}
-	fmt.Fprintln(os.Stderr, "cannot derive client from SETH_URL=%q\n", url)
+	fmt.Fprintf(os.Stderr, "cannot derive client from SETH_URL=%q\n", url)
 	os.Exit(1)
 	return nil
 }

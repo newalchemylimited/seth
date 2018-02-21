@@ -381,7 +381,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
-			if dpos+length >= int64(len(cur)) {
+			if dpos+length > int64(len(cur)) {
 				return fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
 			}
 			*v = make([]byte, length)
@@ -394,7 +394,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
-			if dpos+length >= int64(len(cur)) {
+			if dpos+length > int64(len(cur)) {
 				return fmt.Errorf("bad bytes length %d for data length returned (%d)", length, len(cur))
 			}
 			*v = make([]byte, length)
@@ -407,8 +407,8 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
-			if dpos+(length*32) >= int64(len(cur)) {
-				fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
+			if dpos+(length*32) > int64(len(cur)) {
+				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			s := make([]Int, length)
 			for i := range s {
@@ -424,7 +424,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
-			if dpos+(length*32) >= int64(len(cur)) {
+			if dpos+(length*32) > int64(len(cur)) {
 				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			s := make([]Address, length)
@@ -441,7 +441,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			spare.SetBytes(cur[doff : doff+32])
 			length := spare.Int64()
 			dpos := doff + 32
-			if dpos+(length*32) >= int64(len(cur)) {
+			if dpos+(length*32) > int64(len(cur)) {
 				return fmt.Errorf("bad slice offset %d for data length returned (%d)", doff, len(cur))
 			}
 			s := make([]Data, length)
