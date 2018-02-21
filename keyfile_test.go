@@ -8,6 +8,7 @@ import (
 )
 
 func TestKeyfile(t *testing.T) {
+	t.Parallel()
 	// test vectors from https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
 	testcases := []string{
 		`{

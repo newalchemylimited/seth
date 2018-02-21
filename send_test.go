@@ -89,7 +89,6 @@ func TestArgumentEncoding3(t *testing.T) {
 	var c CallOpts
 	c.EncodeCall("foo(uint256[],uint256[])", &a1, &a2)
 	b, _ := json.Marshal(c.Data)
-	return
 	if string(b) != want {
 		t.Errorf("wanted %q\ngot%q", want, b)
 	}
@@ -109,7 +108,7 @@ func TestArgumentEncoding3(t *testing.T) {
 		t.Errorf("bad length %d r1", len(r1))
 	}
 	if r0[0].Int64() != 1 || r0[1].Int64() != 2 || r1[0].Int64() != 3 || r1[1].Int64() != 4 {
-		t.Errorf("bad values: %d %d %d %d", r0[0], r0[1], r1[0], r1[1])
+		t.Errorf("bad values: %v %v %v %v", &r0[0], &r0[1], &r1[0], &r1[1])
 	}
 }
 

@@ -117,7 +117,7 @@ func (c *Client) deleteFilter(id int64) {
 	var out bool
 	err := c.Do("eth_uninstallFilter", []json.RawMessage{itox(id)}, &out)
 	if err != nil || !out {
-		log.Printf("uninstallFilter: %s %v", err)
+		log.Printf("uninstallFilter: %s %v", err, out)
 	}
 }
 

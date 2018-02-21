@@ -422,7 +422,7 @@ func (c *Chain) estimate(a *callArgs, blocknum int64) (seth.Uint64, error) {
 
 func marshal(from []json.RawMessage, to ...interface{}) error {
 	if len(from) != len(to) {
-		fmt.Errorf("expected %d params; found %d", len(to), len(from))
+		return fmt.Errorf("expected %d params; found %d", len(to), len(from))
 	}
 	for i := range from {
 		gross(from[i], to[i])

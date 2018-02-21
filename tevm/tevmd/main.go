@@ -27,7 +27,7 @@ func client() *seth.Client {
 	if src == "" {
 		client = seth.NewClientTransport(seth.InfuraTransport{})
 	} else if strings.HasPrefix(src, "http") {
-		client = seth.NewClientTransport(&seth.HTTPTransport{src})
+		client = seth.NewClientTransport(&seth.HTTPTransport{URL: src})
 	} else {
 		if _, err := os.Stat(src); err != nil {
 			log.Fatal(err)
