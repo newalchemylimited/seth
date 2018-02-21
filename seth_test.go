@@ -231,3 +231,29 @@ func TestGetNonce(t *testing.T) {
 		}
 	}
 }
+
+func TestGasPrice(t *testing.T) {
+	t.Parallel()
+
+	client := NewHTTPClient("https://api.myetherapi.com/eth")
+
+	if wei, err := client.GasPrice(); err != nil {
+		t.Fatal(err)
+	} else if wei <= 0 {
+		t.Fatal("gas price is too low:", wei)
+	}
+}
+
+func TestBlockNumber(t *testing.T) {
+	t.Parallel()
+
+	client := NewHTTPClient("https://api.myetherapi.com/eth")
+
+	const min = 5132536 // Block number at time test was added.
+
+	if block, err := client.BlockNumber(); err != nil {
+		t.Fatal(err)
+	} else if block < min {
+		t.Fatal("block number is too low:", block, "<", min)
+	}
+}

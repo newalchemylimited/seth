@@ -441,6 +441,91 @@ type RPCResponse struct {
 	Error   RPCError        `json:"error"`
 }
 
+// ProtocolVersion gets the protocol version of the node.
+func (c *Client) ProtocolVersion() (string, error) {
+	var version string
+	if err := c.Do("eth_protocolVersion", nil, &version); err != nil {
+		return "", err
+	}
+	return version, nil
+}
+
+// SyncStatus indicates the syncing status of the node.
+type SyncStatus struct {
+	Starting Uint64 `json:"startingBlock"` // Starting block of sync.
+	Current  Uint64 `json:"currentBlock"`  // Current block of sync.
+	Highest  Uint64 `json:"highestBlock"`  // Highest block of sync, estimated.
+}
+
+// Syncing returns the syncing status of the node, or nil if not syncing.
+func (c *Client) Syncing() (*SyncStatus, error) {
+	var raw json.RawMessage
+	if err := c.Do("eth_syncing", nil, &raw); err != nil {
+		return nil, err
+	} else if bytes.Equal(raw, rawfalse) {
+		return nil, nil
+	}
+	status := new(SyncStatus)
+	if err := json.Unmarshal(raw, status); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+// Coinbase returns the client coinbase address.
+func (c *Client) Coinbase() (*Address, error) {
+	addr := new(Address)
+	if err := c.Do("eth_coinbase", nil, addr); err != nil {
+		return nil, err
+	}
+	return addr, nil
+}
+
+// Mining returns whether the node is actively mining blocks.
+func (c *Client) Mining() (bool, error) {
+	var mining bool
+	if err := c.Do("eth_mining", nil, &mining); err != nil {
+		return false, err
+	}
+	return mining, nil
+}
+
+// Hashrate gets the number of hashes per second that the node is mining with.
+func (c *Client) Hashrate() (int64, error) {
+	var rate Uint64
+	if err := c.Do("eth_hashrate", nil, &rate); err != nil {
+		return 0, err
+	}
+	return int64(rate), nil
+}
+
+// GasPrice gets the gas price in wei.
+func (c *Client) GasPrice() (int64, error) {
+	var wei Uint64
+	if err := c.Do("eth_gasPrice", nil, &wei); err != nil {
+		return 0, err
+	}
+	return int64(wei), nil
+}
+
+// Accounts gets the accounts owned by the client.
+func (c *Client) Accounts() ([]Address, error) {
+	var out []Address
+	if err := c.Do("eth_accounts", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BlockNumber gets the number of the most recent block.
+func (c *Client) BlockNumber() (int64, error) {
+	var block Uint64
+	if err := c.Do("eth_blockNumber", nil, &block); err != nil {
+		return 0, err
+	}
+	return int64(block), nil
+}
+
 // Pending returns the list of pending transactions.
 func (c *Client) Pending() ([]Transaction, error) {
 	b, err := c.GetBlock(-1, true)
