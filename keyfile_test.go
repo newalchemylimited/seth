@@ -2,6 +2,7 @@ package seth
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"testing"
 )
@@ -67,5 +68,27 @@ func TestKeyfile(t *testing.T) {
 		if !bytes.Equal(want[:], addr[:]) {
 			t.Fatalf("didn't derive the right address: %x != %x", want[:], addr[:])
 		}
+	}
+
+	// test that we can generate a key file
+	// that produces the right output
+
+	var priv PrivateKey
+	rand.Read(priv[:])
+
+	kf := priv.ToKeyfile("test", []byte("password"))
+	buf, _ := json.Marshal(kf)
+
+	var out Keyfile
+	if err := json.Unmarshal(buf, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	outpriv, err := out.Private([]byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(outpriv[:], priv[:]) {
+		t.Fatal("keys not equal")
 	}
 }

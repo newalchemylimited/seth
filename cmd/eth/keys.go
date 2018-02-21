@@ -58,6 +58,14 @@ type keydesc struct {
 	hsm  seth.HSM      // the hsm, if there is one associated
 }
 
+func kfvalid(kf *seth.Keyfile) bool {
+	return kf.ID != "" &&
+		kf.Crypto.Cipher != "" &&
+		kf.Crypto.MAC != "" &&
+		kf.Crypto.KDF != "" &&
+		kf.Version != 0
+}
+
 func keys() []keydesc {
 	var out []keydesc
 	for _, p := range keypaths() {
@@ -80,17 +88,19 @@ func keys() []keydesc {
 				debugf("keyfile scan: file %q doesn't look like json", fp)
 				continue
 			}
-			if err := json.Unmarshal(buf, kf); err == nil &&
-				kf.Address != "" &&
-				kf.ID != "" &&
-				strings.HasSuffix(fp, kf.ID) {
+			if err := json.Unmarshal(buf, kf); err == nil && kfvalid(kf) {
 				debugf("using keyfile %q", fp)
 				kd := keydesc{
 					path: fp,
 					kf:   kf,
 					id:   kf.ID,
 				}
-				kd.addr.FromString("0x" + kf.Address)
+				if kf.Name != "" {
+					kd.id = kf.Name
+				}
+				if kf.Address != "" {
+					kd.addr.FromString("0x" + kf.Address)
+				}
 				out = append(out, kd)
 			}
 		}
@@ -147,6 +157,8 @@ func signer() seth.Signer {
 				fatalf("ambiguous key spec %q matches more than one key\n", spec)
 			}
 			matched = &kd
+		} else {
+			debugf("%s doesn't match", kd.id)
 		}
 	}
 	if matched == nil {

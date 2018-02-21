@@ -27,6 +27,8 @@ var subcommands = map[string]*cmd{
 	"sign":    cmdsign,
 	"code":    cmdcode,
 	"jumptab": cmdjumptab,
+	"post":    cmdpost,
+	"keygen":  cmdkeygen,
 }
 
 // debugf prints lines prefixed with '+ ' if
