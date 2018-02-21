@@ -459,9 +459,9 @@ var rawnull = json.RawMessage("null")
 
 // Block specifiers.
 const (
-	Pending  = -2 // Pending block.
-	Latest   = -1 // Latest block.
-	Earliest = 0  // Earliest block.
+	Pending  = int64(-2) // Pending block.
+	Latest   = int64(-1) // Latest block.
+	Earliest = int64(0)  // Earliest block.
 )
 
 // itobs converts an int to a block specifier.
