@@ -314,13 +314,12 @@ func (s *gethState) GetState(addr common.Address, hash common.Hash) common.Hash 
 			s.Trace("Fallback GetState", addr.String(), hash.String())
 		}
 		a := seth.Address(addr)
-		h := seth.Hash(hash)
-		h, err := s.Fallback.StorageAt(&a, &h, s.Fallback.Block)
+		result, err := s.Fallback.StorageAt(&a, (*seth.Hash)(&hash), s.Fallback.Block)
 		if err != nil {
 			panic("fallback StorageAt: " + err.Error())
 		}
-		s.Storage.Insert(hash[:], h[:])
-		v = h[:]
+		s.Storage.Insert(h[:], result[:])
+		v = result[:]
 	}
 	copy(out[:], v)
 	return out
