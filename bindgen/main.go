@@ -158,6 +158,7 @@ func generate(w io.Writer, c *seth.CompiledContract) {
 	fmt.Fprintf(w, "type %s struct {\n", c.Name)
 	fmt.Fprintln(w, "\taddr  *seth.Address")
 	fmt.Fprintln(w, "\ts     *seth.Sender\n}")
+	fmt.Fprintln(w)
 
 	// constructor
 	fmt.Fprintf(w, "func New%s(addr *seth.Address, sender *seth.Sender) *%[1]s {\n", c.Name)
@@ -174,6 +175,8 @@ func generate(w io.Writer, c *seth.CompiledContract) {
 		if d.Constant && len(d.Outputs) == 0 {
 			continue
 		}
+
+		fmt.Fprintln(w)
 
 		fmt.Fprintf(w, "func (z *%s) %s(", c.Name, strings.Title(d.Name))
 		// input arguments
