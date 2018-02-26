@@ -235,6 +235,13 @@ func (k *PrivateKey) Sign(hash *Hash) *Signature {
 	}
 }
 
+// Signer returns a Signer for this private key.
+func (k *PrivateKey) Signer() Signer {
+	return func(h *Hash) (*Signature, error) {
+		return k.Sign(h), nil
+	}
+}
+
 // ParsePrivateKey parses a private key.
 func ParsePrivateKey(s string) (*PrivateKey, error) {
 	k := new(PrivateKey)
