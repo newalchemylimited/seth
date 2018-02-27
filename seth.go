@@ -237,6 +237,14 @@ func (i *Int) Msgsize() int {
 // Uint64 is a uint64 that marshals as a hex-encoded number.
 type Uint64 uint64
 
+func ParseInt(s string) (*Int, error) {
+	n := new(Int)
+	if err := n.FromString(s); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
 // MarshalText implements encoding.TextMarshaler.
 func (i Uint64) MarshalText() ([]byte, error) {
 	var n Int
