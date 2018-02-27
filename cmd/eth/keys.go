@@ -88,7 +88,11 @@ func keys() []keydesc {
 				debugf("keyfile scan: file %q doesn't look like json", fp)
 				continue
 			}
-			if err := json.Unmarshal(buf, kf); err == nil && kfvalid(kf) {
+			if err := json.Unmarshal(buf, kf); err != nil {
+				debugf("keyfile scan: failed to parse file %q: %s", fp, err)
+				continue
+			}
+			if kfvalid(kf) {
 				debugf("using keyfile %q", fp)
 				kd := keydesc{
 					path: fp,

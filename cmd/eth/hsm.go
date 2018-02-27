@@ -28,7 +28,7 @@ func hsmprobe() []seth.HSM {
 			if pstr := os.Getenv(strings.ToUpper(p) + "_PASS"); pstr != "" {
 				pass = []byte(pstr)
 			} else {
-				pass = passpromptf("enter HSM pasword for %s:\n", p)
+				pass = passpromptf("enter HSM password for %s:\n", p)
 			}
 			if err := h.Unlock(pass); err != nil {
 				fatalf("unlock %s: %s", p, err)

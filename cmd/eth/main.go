@@ -13,7 +13,15 @@ type cmd struct {
 	fs   flag.FlagSet
 }
 
+func fatal(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+	os.Exit(1)
+}
+
 func fatalf(f string, args ...interface{}) {
+	if len(f) == 0 || f[len(f)-1] != '\n' {
+		f += "\n"
+	}
 	fmt.Fprintf(os.Stderr, f, args...)
 	os.Exit(1)
 }
@@ -23,12 +31,13 @@ var verbose bool
 var subcommands = map[string]*cmd{
 	"balance": cmdbal,
 	"block":   cmdblock,
-	"keys":    cmdkeylist,
-	"sign":    cmdsign,
 	"code":    cmdcode,
 	"jumptab": cmdjumptab,
-	"post":    cmdpost,
 	"keygen":  cmdkeygen,
+	"keys":    cmdkeylist,
+	"post":    cmdpost,
+	"recover": cmdrecover,
+	"sign":    cmdsign,
 }
 
 // debugf prints lines prefixed with '+ ' if
