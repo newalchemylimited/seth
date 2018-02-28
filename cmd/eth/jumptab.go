@@ -157,7 +157,7 @@ func jumptab(args []string) {
 			base[5] == opdup1+1 &&
 			base[6] == opeq {
 			// first case: PUSH4 <prefix> DUP2 EQ
-			copy(prefixbytes[:], base[1:4])
+			copy(prefixbytes[:], base[1:5])
 		} else if base[0] == opdup1 &&
 			base[1] == oppush1+3 &&
 			base[6] == opeq {
