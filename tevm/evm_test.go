@@ -65,7 +65,7 @@ func TestChainBasic(t *testing.T) {
 	}
 
 	// same but with sender
-	if _, err := s.Create([]byte{0x0, 0x0, 0x0, 0x0}); err != nil {
+	if _, err := s.Create([]byte{0x0, 0x0, 0x0, 0x0}, nil); err != nil {
 		t.Fatal("sender couldn't create contract:", err)
 	}
 
