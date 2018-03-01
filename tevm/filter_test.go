@@ -20,7 +20,7 @@ func TestFilter(t *testing.T) {
 	client := seth.NewClientTransport(chain)
 	sender := seth.NewSender(client, &acct)
 
-	token, err := sender.Create(bundle.Contract("TokenERC20").Code)
+	token, err := sender.Create(bundle.Contract("TokenERC20").Code, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
