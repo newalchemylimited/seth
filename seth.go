@@ -407,21 +407,6 @@ func (b *Block) ParseTransactions() ([]Transaction, error) {
 	return out, nil
 }
 
-// Transaction represents an ethereum transaction
-type Transaction struct {
-	Hash        Hash     `json:"hash"`             // tx hash
-	Nonce       Uint64   `json:"nonce"`            // sender nonce
-	Block       Hash     `json:"blockHash"`        // hash of parent block
-	BlockNumber Uint64   `json:"blockNumber"`      //
-	To          *Address `json:"to"`               // receiver, or nil for contract creation
-	TxIndex     *Uint64  `json:"transactionIndex"` // transaction index, or nil if pending
-	From        *Address `json:"from"`             // from
-	Value       Int      `json:"value"`            // value in wei
-	GasPrice    Int      `json:"gasPrice"`         // gas price
-	Gas         Uint64   `json:"gas"`              // gas spent on transaction
-	Input       Data     `json:"input"`            // input data
-}
-
 // RPCRequest is a request to be sent to an RPC server.
 type RPCRequest struct {
 	Version string            `json:"jsonrpc"`

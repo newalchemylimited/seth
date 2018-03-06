@@ -17,6 +17,10 @@ type Sender struct {
 	*Client
 	Addr *Address
 
+	// A Signer can be used to sign raw transactions for this sender. If
+	// this is set, all transactions will be sent as raw transactions.
+	Signer Signer
+
 	// GasRatio is the ratio of the gas estimate
 	// to use as the gas offered for a transaction,
 	// expressed as a rational number.
@@ -95,9 +99,11 @@ func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 	if opts.From == nil {
 		opts.From = s.Addr
 	}
+
 	if opts.GasPrice == nil {
 		opts.GasPrice = &s.GasPrice
 	}
+
 	if opts.Gas == nil {
 		gas, err := s.EstimateGas(opts)
 		if err != nil {
@@ -105,7 +111,35 @@ func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 		}
 		opts.Gas = s.pad(&gas)
 	}
-	return s.Client.Call(opts)
+
+	if s.Signer == nil {
+		return s.Client.Call(opts)
+	}
+
+	tx := opts.Transaction()
+	hash := tx.HashToSign()
+
+	sig, err := s.Signer(hash)
+	if err != nil {
+		return Hash{}, err
+	}
+
+	// If a from address was provided, verify that the signer produced a
+	// signature for the correct address.
+	if opts.From != nil {
+		pub, err := sig.Recover(hash)
+		if err != nil {
+			return Hash{}, err
+		}
+		from := pub.Address()
+		if *from != *opts.From {
+			return Hash{}, fmt.Errorf(
+				"sender: address mismatch: expected %v, got %v",
+				opts.From, pub.Address())
+		}
+	}
+
+	return s.RawCall(tx.Encode(sig))
 }
 
 // Send makes a contract call from the sender address.

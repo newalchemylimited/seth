@@ -175,7 +175,7 @@ func signer() seth.Signer {
 		if err != nil {
 			fatalf("couldn't derive private key: %s\n", err)
 		}
-		return seth.KeySigner(priv)
+		return priv.Signer()
 	}
 
 	// hsm signer

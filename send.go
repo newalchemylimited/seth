@@ -140,6 +140,22 @@ type CallOpts struct {
 	Nonce    Uint64   `json:"nonce,omitempty"`    // Nonce of the call
 }
 
+// Transaction returns a transaction structure representing this call.
+func (o *CallOpts) Transaction() *Transaction {
+	tx := &Transaction{
+		From:     o.From,
+		To:       o.To,
+		Gas:      Uint64(o.Gas.Uint64()),
+		GasPrice: *o.GasPrice,
+		Input:    o.Data,
+		Nonce:    o.Nonce,
+	}
+	if o.Value != nil {
+		tx.Value = *o.Value
+	}
+	return tx
+}
+
 const illegal = " \t\n\b-+/~!@#$%^&*=|;:\"<>\\?"
 
 // check that the given arguments correspond

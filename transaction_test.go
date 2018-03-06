@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -37,9 +36,9 @@ var encodeIntTests = []encodeTest{
 	{input: uint64(0xFFFFFFFF), output: "84FFFFFFFF"},
 }
 
-func runEncTests(t *testing.T, d []encodeTest, f func(w io.Writer, val interface{})) {
+func runEncTests(t *testing.T, d []encodeTest, f func(e *rlpEncoder, val interface{})) {
 	for i, test := range d {
-		res := new(bytes.Buffer)
+		res := new(rlpEncoder)
 
 		f(res, test.input)
 
@@ -51,9 +50,8 @@ func runEncTests(t *testing.T, d []encodeTest, f func(w io.Writer, val interface
 }
 
 func TestEncodeInt(t *testing.T) {
-	runEncTests(t, encodeIntTests, func(w io.Writer, val interface{}) {
-		rlpEncodeInt(w, Uint64(val.(uint64)))
-		return
+	runEncTests(t, encodeIntTests, func(e *rlpEncoder, val interface{}) {
+		e.EncodeInt(val.(uint64))
 	})
 }
 
@@ -94,9 +92,8 @@ var encodeBytesTests = []encodeTest{
 }
 
 func TestEncodeBytes(t *testing.T) {
-	runEncTests(t, encodeBytesTests, func(w io.Writer, val interface{}) {
-		rlpEncodeString(w, val.([]byte))
-		return
+	runEncTests(t, encodeBytesTests, func(e *rlpEncoder, val interface{}) {
+		e.EncodeString(val.([]byte))
 	})
 }
 
@@ -172,7 +169,7 @@ func signedTx(t *testing.T, p string) {
 func TestSignedTxMarshal(t *testing.T) {
 	signedTx(t, "./_test/txs/*.json")
 
-	runEncTests(t, signedTxTests, func(w io.Writer, val interface{}) {
+	runEncTests(t, signedTxTests, func(e *rlpEncoder, val interface{}) {
 		tx := val.(sTx)
 		res, err := SignTransaction(tx.t, func(*Hash) (*Signature, error) {
 			return tx.s, nil
@@ -181,7 +178,7 @@ func TestSignedTxMarshal(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		w.Write(res)
+		e.Write(res)
 		return
 	})
 }
