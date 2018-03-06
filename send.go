@@ -137,7 +137,7 @@ type CallOpts struct {
 	GasPrice *Int     `json:"gasPrice,omitempty"` // GasPrice offered for gas
 	Value    *Int     `json:"value,omitempty"`    // Value to send
 	Data     Data     `json:"data"`               // Input to the call
-	Nonce    Uint64   `json:"nonce,omitempty"`    // Nonce of the call
+	Nonce    *Uint64  `json:"nonce,omitempty"`    // Nonce of the call
 }
 
 // Transaction returns a transaction structure representing this call.
@@ -148,10 +148,12 @@ func (o *CallOpts) Transaction() *Transaction {
 		Gas:      Uint64(o.Gas.Uint64()),
 		GasPrice: *o.GasPrice,
 		Input:    o.Data,
-		Nonce:    o.Nonce,
 	}
 	if o.Value != nil {
 		tx.Value = *o.Value
+	}
+	if o.Nonce != nil {
+		tx.Nonce = *o.Nonce
 	}
 	return tx
 }
