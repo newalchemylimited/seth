@@ -62,7 +62,6 @@ var theconfig = vm.Config{
 	ForceJit:                false,
 	Tracer:                  nil,
 	NoRecursion:             false,
-	DisableGasMetering:      false,
 	EnablePreimageRecording: false,
 }
 

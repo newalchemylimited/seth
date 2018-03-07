@@ -188,6 +188,10 @@ func (k *Keyfile) Private(passphrase []byte) (*PrivateKey, error) {
 	return priv, nil
 }
 
+// ToKeyfile produces a Keyfile for p with the given name and password.
+// The Keyfile is produced using the strongest available parameters, which,
+// as of this writing, are aes-128-ctr encryption and scrypt-based key-derivation.
+// Pass Name may be "". For privacy reasons, ToKeyfile doesn't set Keyfile.Address.
 func (p *PrivateKey) ToKeyfile(name string, pass []byte) *Keyfile {
 	kf := &Keyfile{
 		Version: 3,

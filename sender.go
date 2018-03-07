@@ -117,6 +117,18 @@ func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 	}
 
 	tx := opts.Transaction()
+
+	// if no nonce was specified, try to select it
+	if opts.Nonce == nil {
+		if tx.From == nil {
+			return Hash{}, fmt.Errorf("Sender.Call: unspecified nonce, and no from address provided")
+		}
+		n, err := s.GetNonceAt(tx.From, Pending)
+		if err != nil {
+			return Hash{}, err
+		}
+		tx.Nonce = Uint64(n)
+	}
 	hash := tx.HashToSign()
 
 	sig, err := s.Signer(hash)
@@ -158,7 +170,7 @@ func (s *Sender) Cancel(h *Hash) (Hash, error) {
 	} else if tx.TxIndex != nil {
 		return Hash{}, ErrCannotCancel
 	}
-	opts := CallOpts{To: s.Addr, From: s.Addr, Nonce: tx.Nonce}
+	opts := CallOpts{To: s.Addr, From: s.Addr, Nonce: &tx.Nonce}
 	if s.GasPrice.Cmp(&tx.GasPrice) > 0 {
 		opts.GasPrice = &s.GasPrice
 	} else {
