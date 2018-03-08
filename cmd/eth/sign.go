@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"flag"
 	"io"
 	"io/ioutil"
 	"os"
@@ -12,8 +12,9 @@ import (
 )
 
 var cmdsign = &cmd{
-	desc: "sign input",
-	do:   sign,
+	desc:  "sign input",
+	usage: "eth sign <infile>",
+	do:    sign,
 }
 
 var signprefix string // prefix to add to signature
@@ -29,16 +30,17 @@ func bool2i(b bool) int {
 }
 
 func init() {
+	cmdsign.fs.Init("sign", flag.ExitOnError)
 	cmdsign.fs.StringVar(&signprefix, "prefix", "", "signing prefix")
 	cmdsign.fs.BoolVar(&hashed, "h", false, "input already hashed")
 	cmdsign.fs.BoolVar(&sighex, "x", false, "output is in hex instead of binary")
 	cmdsign.fs.BoolVar(&sigjson, "j", false, "output is in json instead of binary")
 }
 
-func sign(args []string) {
+func sign(fs *flag.FlagSet) {
+	args := fs.Args()
 	if len(args) != 1 {
-		fmt.Println("usage: eth sign [-h|-x|-j|-prefix] <infile>")
-		os.Exit(1)
+		fs.Usage()
 	}
 	if hashed && signprefix != "" {
 		fatalf("cannot add a prefix to hashed plaintext\n")
@@ -69,7 +71,7 @@ func sign(args []string) {
 		h = seth.HashBytes(buf)
 	}
 
-	fn := signer()
+	fn, _ := signer()
 	sig, err := fn(&h)
 	if err != nil {
 		fatalf("fatal error signing: %s\n", err)

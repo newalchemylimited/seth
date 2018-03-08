@@ -18,10 +18,12 @@ var cmdkeygen = &cmd{
 var keygenout string
 
 func init() {
-	flag.StringVar(&keygenout, "o", "", "output file")
+	cmdkeygen.fs.Init("keygen", flag.ExitOnError)
+	cmdkeygen.fs.StringVar(&keygenout, "o", "", "output file")
 }
 
-func keygen(args []string) {
+func keygen(fs *flag.FlagSet) {
+	args := fs.Args()
 	if len(args) > 1 {
 		fatalf("usage: eth keygen <name>\n")
 	}

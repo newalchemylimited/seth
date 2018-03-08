@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,11 +15,16 @@ var cmdpost = &cmd{
 }
 
 func init() {
-
+	cmdpost.fs.Init("post", flag.ExitOnError)
 }
 
-func post(args []string) {
+func post(fs *flag.FlagSet) {
+	args := fs.Args()
 	var out [][]byte
+
+	if len(args) == 0 {
+		fs.Usage()
+	}
 
 	for i, a := range args {
 		var in io.ReadCloser

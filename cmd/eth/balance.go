@@ -10,12 +10,12 @@ import (
 )
 
 var cmdbal = &cmd{
-	desc: "get the balance of an account",
-	do:   getbal,
+	desc:  "get the balance of an account",
+	usage: "eth balance <address ...>",
+	do:    getbal,
 }
 
-var hexbalance bool
-var decbalance bool
+var hexbalance, decbalance bool
 
 func init() {
 	cmdbal.fs.Init("balance", flag.ExitOnError)
@@ -23,10 +23,13 @@ func init() {
 	cmdbal.fs.BoolVar(&decbalance, "d", false, "print balance as an integer")
 }
 
-func getbal(args []string) {
+func getbal(fs *flag.FlagSet) {
+
+	args := fs.Args()
 	if len(args) == 0 {
-		fatalf("usage: eth balance <addresses...>\n")
+		fs.Usage()
 	}
+
 	addrs := make([]seth.Address, len(args))
 	for i := range args {
 		if err := addrs[i].FromString(args[i]); err != nil {

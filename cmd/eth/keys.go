@@ -148,7 +148,7 @@ func passpromptf(f string, args ...interface{}) []byte {
 }
 
 // signer chooses a signer based on the program state
-func signer() seth.Signer {
+func signer() (seth.Signer, seth.Address) {
 	var matched *keydesc
 	spec := keyspec()
 	re, err := regexp.Compile(spec)
@@ -175,7 +175,7 @@ func signer() seth.Signer {
 		if err != nil {
 			fatalf("couldn't derive private key: %s\n", err)
 		}
-		return priv.Signer()
+		return priv.Signer(), *priv.PublicKey().Address()
 	}
 
 	// hsm signer
@@ -188,9 +188,9 @@ func signer() seth.Signer {
 		if err != nil {
 			fatalf("internal error: matching hsm key: %s\n", err)
 		}
-		return s
+		return s, matched.addr
 	}
 
 	fatalf("internal error: don't know how to sign with that key...\n")
-	return nil
+	return nil, seth.Address{}
 }

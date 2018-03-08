@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,8 +11,13 @@ import (
 )
 
 var cmdblock = &cmd{
-	desc: "print a block as json",
-	do:   block,
+	desc:  "print a block as json",
+	usage: "eth block <specifier...>",
+	do:    block,
+}
+
+func init() {
+	cmdblock.fs.Init("block", flag.ExitOnError)
 }
 
 func showblock(b *seth.Block) {
@@ -58,7 +64,9 @@ func blockrange(c *seth.Client, spec string) {
 	}
 }
 
-func block(args []string) {
+func block(fs *flag.FlagSet) {
+	fs.Init("block", flag.ExitOnError)
+	args := fs.Args()
 	if len(args) == 0 {
 		args = append(args, "pending")
 	}

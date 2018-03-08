@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,6 +15,10 @@ import (
 var cmdjumptab = &cmd{
 	desc: "print the jump table of a contract",
 	do:   jumptab,
+}
+
+func init() {
+	cmdjumptab.fs.Init("jumptab", flag.ExitOnError)
 }
 
 // just the opcodes we need to parse the jump table
@@ -92,7 +97,8 @@ var prefixes = []string{
 	"60e060020a60003504",
 }
 
-func jumptab(args []string) {
+func jumptab(fs *flag.FlagSet) {
+	args := fs.Args()
 	if len(args) != 1 {
 		fatalf("usage: eth jumptab <address|->\n")
 	}
@@ -122,6 +128,28 @@ func jumptab(args []string) {
 		fatalf("address has no code\n")
 	}
 
+	entries := jumpentries(code)
+	if len(entries) == 0 {
+		return
+	}
+
+	dict := make(map[uint32]string)
+	for _, sig := range preimage {
+		h := seth.HashString(sig)
+		dict[binary.LittleEndian.Uint32(h[:4])] = sig
+	}
+	for i := range entries {
+		sigword := binary.LittleEndian.Uint32(entries[i].prefix[:])
+		sig := dict[sigword]
+		if sig == "" {
+			fmt.Printf("%x pc:%5d\n", entries[i].prefix[:], entries[i].jmpdest)
+		} else {
+			fmt.Printf("%x pc:%5d %s\n", entries[i].prefix[:], entries[i].jmpdest, sig)
+		}
+	}
+}
+
+func jumpentries(code []byte) []jmpentry {
 	// for each of the possible jump table preambles,
 	// try to find an appropriate match in the code
 	preamble := -1
@@ -183,22 +211,5 @@ func jumptab(args []string) {
 		base = base[8+pwidth+1:]
 	}
 
-	if len(entries) == 0 {
-		return
-	}
-
-	dict := make(map[uint32]string)
-	for _, sig := range preimage {
-		h := seth.HashString(sig)
-		dict[binary.LittleEndian.Uint32(h[:4])] = sig
-	}
-	for i := range entries {
-		sigword := binary.LittleEndian.Uint32(entries[i].prefix[:])
-		sig := dict[sigword]
-		if sig == "" {
-			fmt.Printf("%x pc:%5d\n", entries[i].prefix[:], entries[i].jmpdest)
-		} else {
-			fmt.Printf("%x pc:%5d %s\n", entries[i].prefix[:], entries[i].jmpdest, sig)
-		}
-	}
+	return entries
 }

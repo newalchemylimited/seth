@@ -8,9 +8,10 @@ import (
 )
 
 type cmd struct {
-	desc string              // command description
-	do   func(args []string) // do it
-	fs   flag.FlagSet
+	desc  string // command description
+	usage string
+	do    func(fs *flag.FlagSet) // do it
+	fs    flag.FlagSet
 }
 
 func fatal(args ...interface{}) {
@@ -31,6 +32,7 @@ var verbose bool
 var subcommands = map[string]*cmd{
 	"balance": cmdbal,
 	"block":   cmdblock,
+	"call":    cmdcall,
 	"code":    cmdcode,
 	"jumptab": cmdjumptab,
 	"keygen":  cmdkeygen,
@@ -77,8 +79,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[1])
 		usage()
 	}
+
 	// every command gets a "-v" flag for debugf output
 	cmd.fs.BoolVar(&verbose, "v", false, "verbose")
 	cmd.fs.Parse(args[2:])
-	cmd.do(cmd.fs.Args())
+	cmd.fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "usage:", cmd.usage)
+		cmd.fs.PrintDefaults()
+		os.Exit(1)
+	}
+	cmd.do(&cmd.fs)
 }
