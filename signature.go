@@ -74,9 +74,6 @@ func (z *Signature) Parts() (r, s big.Int, v int) {
 // parts returns r, s, and v and also validates them.
 func (z *Signature) parts() (r, s big.Int, v int, ok bool) {
 	v = int(z[64])
-	if v != 0 && v != 1 {
-		return
-	}
 	r.SetBytes(z[:32])
 	if r.Sign() == 0 {
 		return
