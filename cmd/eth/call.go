@@ -14,7 +14,7 @@ import (
 
 var cmdcall = &cmd{
 	desc:  "call a function",
-	usage: "eth call <addr> <sig> <args ...>",
+	usage: "eth call <addr> <fn> <args ...>",
 	do:    call,
 }
 
@@ -166,47 +166,23 @@ func parsearg(typ, val string) seth.EtherType {
 	return nil
 }
 
-func call(fs *flag.FlagSet) {
-	args := fs.Args()
-	if len(args) < 2 {
-		fs.Usage()
-		fatalf("usage: eth call <address> <sig> <args...>\n")
-	}
-
-	addr, err := seth.ParseAddress(args[0])
-	if err != nil {
-		fatalf("can't parse address %q: %s\n", args[0], err)
-	}
-
-	lparen, rparen := strings.IndexByte(args[1], '('), strings.IndexByte(args[1], ')')
+func parsefn(c *seth.Client, addr *seth.Address, fn string, args []string) []seth.EtherType {
+	lparen, rparen := strings.IndexByte(fn, '('), strings.IndexByte(fn, ')')
 	if lparen == -1 || rparen == -1 ||
 		rparen-lparen < 1 ||
-		rparen != len(args[1])-1 {
+		rparen != len(fn)-1 {
 		fatalf("bad function signature %q (bad parens)\n", args[1])
 	}
 
-	fname := args[1][:lparen]
+	fname := fn[:lparen]
 	if fname == "" && lparen != rparen-1 {
 		fatalf("fallback function can't have arguments\n")
 	}
 
-	argtypes := strings.Split(args[1][lparen+1:rparen-1], ",")
-	argstrings := args[2:]
-	if len(argstrings) != len(argtypes) {
-		fatalf("signature wants %d arguments, but %d were provided\n", len(argtypes), len(argstrings))
-	}
-
-	callargs := make([]seth.EtherType, len(argtypes))
-	for i := range argtypes {
-		callargs[i] = parsearg(argtypes[i], argstrings[i])
-	}
-
-	c := client()
-
 	// check that the function we're calling is
 	// actually present in the jump table
-	if !forcecall && fname != "" {
-		h := seth.HashString(args[1])
+	if c != nil && !forcecall && fname != "" {
+		h := seth.HashString(fn)
 		entries := jumpentries(getcode(c, addr))
 		found := false
 		for i := range entries {
@@ -219,6 +195,37 @@ func call(fs *flag.FlagSet) {
 			fatalf("signature %q (jump table %x) not found in code\n", args[1], h[:4])
 		}
 	}
+
+	arglist := fn[lparen+1 : rparen]
+	if arglist == "" {
+		return make([]seth.EtherType, 0)
+	}
+	argtypes := strings.Split(arglist, ",")
+	if len(args) < len(argtypes) {
+		fatalf("signature wants %d arguments, but %d were provided\n", len(argtypes), len(args))
+	}
+
+	callargs := make([]seth.EtherType, len(argtypes))
+	for i := range argtypes {
+		callargs[i] = parsearg(argtypes[i], args[i])
+	}
+	return callargs
+}
+
+func call(fs *flag.FlagSet) {
+	args := fs.Args()
+	if len(args) < 2 {
+		fs.Usage()
+		fatalf("usage: eth call <address> <sig> <args...>\n")
+	}
+
+	addr, err := seth.ParseAddress(args[0])
+	if err != nil {
+		fatalf("can't parse address %q: %s\n", args[0], err)
+	}
+
+	c := client()
+	callargs := parsefn(c, addr, args[1], args[2:])
 
 	sign, from := signer()
 	opts := seth.CallOpts{
