@@ -24,7 +24,7 @@ func (z *ABIDescriptor) DecodeMsg(dc *msgp.Reader) (err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
-		case "Type":
+		case "type":
 			z.Type, err = dc.ReadString()
 			if err != nil {
 				return
@@ -101,8 +101,8 @@ func (z *ABIDescriptor) DecodeMsg(dc *msgp.Reader) (err error) {
 // EncodeMsg implements msgp.Encodable
 func (z *ABIDescriptor) EncodeMsg(en *msgp.Writer) (err error) {
 	// map header, size 8
-	// write "Type"
-	err = en.Append(0x88, 0xa4, 0x54, 0x79, 0x70, 0x65)
+	// write "type"
+	err = en.Append(0x88, 0xa4, 0x74, 0x79, 0x70, 0x65)
 	if err != nil {
 		return err
 	}
@@ -192,8 +192,8 @@ func (z *ABIDescriptor) EncodeMsg(en *msgp.Writer) (err error) {
 func (z *ABIDescriptor) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 8
-	// string "Type"
-	o = append(o, 0x88, 0xa4, 0x54, 0x79, 0x70, 0x65)
+	// string "type"
+	o = append(o, 0x88, 0xa4, 0x74, 0x79, 0x70, 0x65)
 	o = msgp.AppendString(o, z.Type)
 	// string "name"
 	o = append(o, 0xa4, 0x6e, 0x61, 0x6d, 0x65)
@@ -247,7 +247,7 @@ func (z *ABIDescriptor) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
-		case "Type":
+		case "type":
 			z.Type, bts, err = msgp.ReadStringBytes(bts)
 			if err != nil {
 				return
