@@ -4,6 +4,8 @@ import (
 	"bytes"
 )
 
+//go:generate msgp
+
 // Transaction represents an ethereum transaction.
 type Transaction struct {
 	Hash        Hash     `json:"hash"`             // tx hash
