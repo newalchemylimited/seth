@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,20 +10,22 @@ import (
 )
 
 var cmdrecover = &cmd{
-	desc: "recover the address from a signature",
-	do:   ecrecover,
+	desc:  "recover the address from a signature",
+	usage: "eth recover <sig> [hash]",
+	do:    ecrecover,
 }
 
 var ecrpub bool // print public key
 
 func init() {
+	cmdrecover.fs.Init("recover", flag.ExitOnError)
 	cmdrecover.fs.BoolVar(&ecrpub, "pub", false, "print public key")
 }
 
-func ecrecover(args []string) {
+func ecrecover(fs *flag.FlagSet) {
+	args := fs.Args()
 	if len(args) < 1 || len(args) > 2 {
-		fmt.Println("usage: eth recover [-pub] <sig> [hash]")
-		os.Exit(1)
+		fs.Usage()
 	}
 
 	sig, err := seth.ParseSignature(args[0])

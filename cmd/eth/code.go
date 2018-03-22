@@ -1,19 +1,26 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/newalchemylimited/seth"
 )
 
 var cmdcode = &cmd{
-	desc: "get contract code",
-	do:   code,
+	desc:  "get contract code",
+	usage: "eth code <addr>",
+	do:    code,
 }
 
-func code(args []string) {
+func init() {
+	cmdcode.fs.Init("code", flag.ExitOnError)
+}
+
+func code(fs *flag.FlagSet) {
+	args := fs.Args()
 	if len(args) != 1 {
-		fatalf("usage: eth code <address>\n")
+		fs.Usage()
 	}
 
 	var addr seth.Address
