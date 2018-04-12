@@ -58,8 +58,6 @@ func (a *Account) SetSuicided(t bool) {
 // default vm.Config
 var theconfig = vm.Config{
 	Debug:                   false,
-	EnableJit:               false,
-	ForceJit:                false,
 	Tracer:                  nil,
 	NoRecursion:             false,
 	EnablePreimageRecording: false,
