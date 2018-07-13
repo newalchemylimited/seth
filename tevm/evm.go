@@ -64,7 +64,7 @@ var theconfig = vm.Config{
 }
 
 var theparams = params.ChainConfig{
-	ChainId:        new(big.Int).SetInt64(5),
+	ChainID:        new(big.Int).SetInt64(5),
 	HomesteadBlock: new(big.Int),
 	EIP150Block:    new(big.Int),
 	EIP155Block:    new(big.Int),
