@@ -284,12 +284,13 @@ func (s *gethState) GetCodeSize(addr common.Address) int {
 	return len(s.GetCode(addr))
 }
 
-func (s *gethState) AddRefund(v uint64) {
-	s.Refund += seth.Uint64(v)
+func (s *gethState) AddRefund(v *big.Int) {
+	s.Refund += seth.Uint64(v.Uint64())
 }
 
-func (s *gethState) GetRefund() uint64 {
-	return uint64(s.Refund)
+//func (s *gethState) GetRefund() uint64 {
+func (s *gethState) GetRefund() *big.Int {
+	return new(big.Int).SetUint64(uint64(s.Refund))
 }
 
 func stateKey(addr *common.Address, hash *common.Hash) seth.Hash {
@@ -730,7 +731,7 @@ func (c *Chain) context(sender [20]byte) vm.Context {
 		GetHash:     n2h,
 		Origin:      common.Address(sender),
 		Coinbase:    common.Address(b.Miner),
-		GasLimit:    uint64(b.GasLimit),
+		GasLimit:    new(big.Int).SetUint64(uint64(b.GasLimit)),
 		BlockNumber: new(big.Int).SetInt64(int64(*b.Number)),
 		Time:        new(big.Int).SetInt64(int64(b.Timestamp)),
 		Difficulty:  new(big.Int).Set((*big.Int)(b.Difficulty)),
