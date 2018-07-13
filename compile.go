@@ -97,7 +97,7 @@ type ABIParam struct {
 // ABIDescriptor describes a function, constructor, or event
 type ABIDescriptor struct {
 	// one of "function" "constructor" "fallback" "event"
-	Type       string     `json:"type" msg:"name"`
+	Type       string     `json:"type" msg:"type"`
 	Name       string     `json:"name" msg:"name"`
 	Inputs     []ABIParam `json:"inputs" msg:"inputs"`
 	Outputs    []ABIParam `json:"outputs,omitempty" msg:"outputs"`
