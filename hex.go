@@ -46,8 +46,14 @@ func hexdecode(dst, src []byte) error {
 	if !hexprefix(src) {
 		return fmt.Errorf("bad hex string %q", src)
 	}
-	if len(dst) != hexlen(src) {
-		return fmt.Errorf("size mismatch: %d != %d", len(dst), hexlen(src))
+
+	// XXX: ganache returns "0x0" for empty addresses.
+	//if len(dst) != hexlen(src) {
+	//	return fmt.Errorf("size mismatch: %d != %d", len(dst), hexlen(src))
+	//}
+
+	if hexlen(src) > len(dst) {
+		return fmt.Errorf("hex length greater than destination length: %d > %d", hexlen(src), len(dst))
 	}
 
 	// If the input is an odd-sized hex string,

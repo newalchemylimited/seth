@@ -118,6 +118,7 @@ func (c *Client) Do(method string, params []json.RawMessage, result interface{})
 	} else if bytes.Equal(res.Result, rawnull) {
 		return ErrNotFound
 	}
+
 	return json.Unmarshal(res.Result, result)
 }
 

@@ -32,6 +32,10 @@ type Sender struct {
 
 	// GasPrice is the gas price offered for each transaction.
 	GasPrice Int
+
+	// Pending decides if "pending" is sent instead of "latest" for the defaultBlock parameter
+	// See: https://github.com/ethereum/wiki/wiki/JSON-RPC#the-default-block-parameter
+	Pending bool
 }
 
 // NewSender constructs a Sender with sane defaults.
@@ -55,13 +59,14 @@ func (s *Sender) pad(gas *Int) *Int {
 	ob.Set(gb)
 	ob.Mul(ob, &num)
 	ob.Div(ob, &denom)
+
 	return (*Int)(ob)
 }
 
-func (s *Sender) ConstCall(to *Address, method string, out interface{}, args ...EtherType) error {
+func (s *Sender) ConstCall(to *Address, method string, out interface{}, args ...interface{}) error {
 	opts := CallOpts{To: to, From: s.Addr, GasPrice: &s.GasPrice}
 	opts.EncodeCall(method, args...)
-	return s.Client.ConstCall(&opts, out, true)
+	return s.Client.ConstCall(&opts, out, s.Pending)
 }
 
 // Create creates a new contract with the given contract code.
@@ -70,22 +75,22 @@ func (s *Sender) ConstCall(to *Address, method string, out interface{}, args ...
 func (s *Sender) Create(code []byte, value *Int) (Address, error) {
 	opts := CallOpts{From: s.Addr, GasPrice: &s.GasPrice, Value: value}
 	opts.Data = Data(code)
-	gas, err := s.EstimateGas(&opts)
+	gas, err := s.EstimateGas(&opts, s.Pending)
 	if err != nil {
-		return Address{}, err
+		return Address{}, fmt.Errorf("error estimating gas: %s", err)
 	}
 	opts.Gas = s.pad(&gas)
 	h, err := s.Call(&opts)
 	if err != nil {
-		return Address{}, err
+		return Address{}, fmt.Errorf("error sending create call: %s", err)
 	}
 	err = s.Wait(&h)
 	if err != nil {
-		return Address{}, err
+		return Address{}, fmt.Errorf("error waiting for create transaction: %s", err)
 	}
 	r, err := s.GetReceipt(&h)
 	if err != nil {
-		return Address{}, err
+		return Address{}, fmt.Errorf("error waiting for create receipt: %s", err)
 	}
 	if r.Address == nil {
 		return Address{}, fmt.Errorf("txhash %s: contract not created", &h)
@@ -105,7 +110,7 @@ func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 	}
 
 	if opts.Gas == nil {
-		gas, err := s.EstimateGas(opts)
+		gas, err := s.EstimateGas(opts, s.Pending)
 		if err != nil {
 			return Hash{}, err
 		}
@@ -156,7 +161,7 @@ func (s *Sender) Call(opts *CallOpts) (Hash, error) {
 
 // Send makes a contract call from the sender address.
 // It automatically handles gas estimation and padding.
-func (s *Sender) Send(to *Address, method string, args ...EtherType) (Hash, error) {
+func (s *Sender) Send(to *Address, method string, args ...interface{}) (Hash, error) {
 	opts := CallOpts{To: to}
 	opts.EncodeCall(method, args...)
 	return s.Call(&opts)

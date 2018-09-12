@@ -21,6 +21,7 @@ func TestBindgen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	do(t, "go generate ./test/")
+	do(t, "go generate .")
+	do(t, "go generate -v ./test/")
 	do(t, "go run "+strings.Join(gofiles, " "))
 }

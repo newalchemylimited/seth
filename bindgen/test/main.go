@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/newalchemylimited/seth"
-	"github.com/newalchemylimited/seth/tevm"
 )
 
 //go:generate bindgen -b -c=Test -o generated.go compiletest.sol
@@ -35,45 +36,192 @@ func main() {
 	// note: this program gets run from the parent directory
 	bundle, err := seth.CompileGlob("test/*.sol")
 	if err != nil {
-		fatal(err)
+		bundle, err = seth.CompileGlob("*.sol")
+		if err != nil {
+			fatal(err)
+		}
 	}
 
-	c := tevm.NewChain()
-	acct := c.NewAccount(1)
+	// c := tevm.NewChain()
+	// acct := c.NewAccount(1)
 
+	url := "http://localhost:7545"
+
+	c := seth.NewHTTPClient(url)
+	fundingAddress, err := seth.ParseAddress("0x84ede7C61cBFf3056D6dEb24FF774b79c1d2c4E4")
+	sender := seth.NewSender(c, fundingAddress)
 	contract := bundle.Contract("Test")
 	ccode := contract.Code
 
 	if !bytes.Equal(seth.StripBytecode(ccode), seth.StripBytecode(TestCode)) {
-		fatal("compiled and precompiled code not identical")
+		//fatal("compiled and precompiled code not identical")
 	}
 
-	addr, err := c.Create(&acct, TestCode)
+	// addr, _ := seth.ParseAddress("0x480131399939c242cac75bb3ccadad1f697c3c47")
+
+	addr, err := sender.Create(TestCode, nil)
+	//addr, err := c.Create(&acct, TestCode)
 	if err != nil {
 		fatal("deploying the contract:", err)
 	}
 
-	cc := NewTest(&addr, c.Sender(&acct))
+	log.Printf("Installed contract to: %s", addr.String())
 
-	v, err := cc.Value()
-	check(err)
-	assert(v.Int64() == 0)
+	//sender := c.Sender(&acct)
+	//sender.Pending = true
 
-	v, err = cc.Counter()
-	check(err)
-	assert(v.Int64() == 0)
+	cc := NewTest(&addr, sender)
 
-	_, err = cc.MustThrow()
-	assert(err != nil)
+	s := "hello"
+	b := []byte(s)
 
-	_, err = cc.Inc()
-	check(err)
+	var b32 [32]byte
+	copy(b32[:], b[:])
 
-	v, err = cc.Value()
-	check(err)
-	assert(v.Int64() == 1)
+	spew.Dump(cc.SetBytes32Val(b32))
 
-	v, err = cc.Counter()
-	check(err)
-	assert(v.Int64() == 1)
+	spew.Dump(cc.Bytes32Val())
+
+	spew.Dump(cc.SetBytesval(b))
+
+	spew.Dump(cc.Bytesval())
+
+	spew.Dump(cc.SetStringval(s))
+
+	spew.Dump(cc.Stringval())
+
+	//spew.Dump(cc.AddElliot())
+
+	//time.Sleep(time.Second * 10)
+
+	//spew.Dump(cc.AllPeople())
+
+	// log.Printf("installed contract to: %s", addr.String())
+
+	// client := seth.NewHTTPClient("http://localhost:7545")
+	// fundingAddress, err := seth.ParseAddress("0x84ede7C61cBFf3056D6dEb24FF774b79c1d2c4E4")
+	// if err != nil {
+	// 	fatal("bad funding address")
+	// }
+
+	// sender := seth.NewSender(client, fundingAddress)
+
+	// // contract := bundle.Contract("Test")
+	// // ccode := contract.Code
+
+	// // if !bytes.Equal(seth.StripBytecode(ccode), seth.StripBytecode(TestCode)) {
+	// // 	fatal("compiled and precompiled code not identical")
+	// // }
+
+	// // addr, err := sender.Create(TestCode, nil)
+	// // //addr, err := c.Create(&acct, TestCode)
+	// // if err != nil {
+	// // 	fatal("deploying the contract:", err)
+	// // }
+
+	// // spew.Dump("Deployed contract to", addr.String())
+
+	// addr, _ := seth.ParseAddress("0xcd655ab80b149302831855cf91b7794705f1e564")
+
+	// //cc := NewTest(&addr, c.Sender(&acct))
+	// cc := NewTest(addr, sender)
+
+	//spew.Dump(cc.Name())
+
+	/*
+		BAD:
+		0x4df9dcd362656e0000000000000000000000000000000000000000000000000000000000
+
+		GOOD:
+		0x4df9dcd3000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000026869000000000000000000000000000000000000000000000000000000000000
+	*/
+
+	// initial, err := cc.Value()
+	// check(err)
+
+	// initial2, err := cc.Counter()
+	// check(err)
+	// assert(initial == initial2)
+
+	// _, err = cc.MustThrow()
+	// assert(err != nil)
+
+	// _, err = cc.Inc()
+	// check(err)
+
+	// afterIncrement, err := cc.Value()
+	// check(err)
+	// assert(afterIncrement == initial+1)
+
+	// afterIncrement2, err := cc.Counter()
+	// check(err)
+	// assert(afterIncrement2 == afterIncrement)
+
+	// v2, err := cc.DoubleThis(100)
+	// check(err)
+	// assert(v2 == 200)
+
+	// _, err = cc.SetName("ben")
+	// check(err)
+	// name, err := cc.Name()
+	// check(err)
+	// assert(name == "ben")
+
+	// defaultRoundTripper := http.DefaultTransport
+	// defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+	// if !ok {
+	// 	panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+	// }
+
+	// defaultTransportPointer.MaxIdleConns = 1000
+	// defaultTransportPointer.MaxIdleConnsPerHost = 1000
+
+	// var wg sync.WaitGroup
+
+	// for i := 0; i < 100; i++ {
+	// 	log.Printf("adding %d\n", i)
+	// 	wg.Add(100)
+	// 	go func(i int) {
+	// 		log.Printf("starting %d\n", i)
+
+	// 		// client := seth.NewHTTPClient(url)
+
+	// 		// p := &seth.ParityClient{*client}
+	// 		// peers, _ := p.NetPeers()
+
+	// 		// j, _ := json.MarshalIndent(peers, " ", "  ")
+	// 		// log.Println(string(j))
+
+	// 		// spew.Dump(p.Chain())
+	// 		// spew.Dump(p.Mode())
+	// 		// fundingAddress, err := seth.ParseAddress("0x5231a93db3ce6cbb709af94a267dd0e747d30f82")
+	// 		// if err != nil {
+	// 		// 	fatal("bad funding address")
+	// 		// }
+
+	// 		// sender := seth.NewSender(client, fundingAddress)
+
+	// 		//addr, _ := seth.ParseAddress("0xcd655ab80b149302831855cf91b7794705f1e564")
+
+	// 		// cc := NewTest(addr, sender)
+
+	// 		for j := 0; j < 100; j++ {
+
+	// 			_, err = cc.Inc()
+	// 			if err != nil {
+	// 				panic(err)
+	// 			}
+
+	// 			if j%33 == 0 {
+	// 				spew.Dump(cc.Counter())
+	// 			}
+	// 			wg.Done()
+	// 		}
+	// 		log.Printf("ending %d\n", i)
+
+	// 	}(i)
+	// }
+
+	// wg.Wait()
+
 }
