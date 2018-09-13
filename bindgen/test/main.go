@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -47,9 +48,12 @@ func main() {
 	// acct := c.NewAccount(1)
 
 	url := "http://localhost:7545"
+	//url := "http://localhost:8545"
 
 	c := seth.NewHTTPClient(url)
-	fundingAddress, err := seth.ParseAddress("0x84ede7C61cBFf3056D6dEb24FF774b79c1d2c4E4")
+	fundingAddress, err := seth.ParseAddress("0x84ede7C61cBFf3056D6dEb24FF774b79c1d2c4E4") // ganache
+	//fundingAddress, err := seth.ParseAddress("0x5231a93db3ce6cbb709af94a267dd0e747d30f82") // parity
+
 	sender := seth.NewSender(c, fundingAddress)
 	contract := bundle.Contract("Test")
 	ccode := contract.Code
@@ -58,13 +62,14 @@ func main() {
 		//fatal("compiled and precompiled code not identical")
 	}
 
-	// addr, _ := seth.ParseAddress("0x480131399939c242cac75bb3ccadad1f697c3c47")
+	//addr, _ := seth.ParseAddress("0xc42286d90be0bc5ebe8c141de13d0451e62ca897")
 
+	//*
 	addr, err := sender.Create(TestCode, nil)
 	//addr, err := c.Create(&acct, TestCode)
 	if err != nil {
 		fatal("deploying the contract:", err)
-	}
+	} //*/
 
 	log.Printf("Installed contract to: %s", addr.String())
 
@@ -73,7 +78,7 @@ func main() {
 
 	cc := NewTest(&addr, sender)
 
-	s := "hello"
+	//s := "hello"
 	// b := []byte(s)
 
 	// var b32 [32]byte
@@ -87,29 +92,28 @@ func main() {
 
 	// spew.Dump(cc.BytesVal())
 
-	spew.Dump(cc.SetStringVal(s))
+	//spew.Dump(cc.SetStringVal(s))
+	//spew.Dump(cc.SetStringVal("elliot"))
 
-	spew.Dump(cc.StringVal())
+	//spew.Dump(cc.StringVal())
 	//time.Sleep(time.Second * 5)
 
-	filter, err := cc.FilterStringValSetEvent(-1, 0)
+	spew.Dump(cc.SendTestEvent(123, "test", []byte("hihi")))
+	spew.Dump(cc.SendTestEvent(321, "something else", []byte("goodbye")))
 
-	if err != nil {
-		panic(err)
-	}
+	msgCh, _, errCh := cc.FilterSomethingHappenedEvent(0, -1)
 
-top:
 	for {
-		if filter.Err() != nil {
-			panic(err)
-		}
 		select {
-		case msg := <-filter.Out():
+		case err := <-errCh:
+			panic(err)
+		case msg := <-msgCh:
 			if msg == nil {
-				spew.Dump("no more messages")
-				break top
+				break
 			}
+
 			spew.Dump("message", msg)
+
 		}
 	}
 
@@ -247,4 +251,15 @@ top:
 
 	// wg.Wait()
 
+}
+
+// hexstring returns a hex string of the given data
+func hexstring(b []byte, trunc bool) []byte {
+	buf := make([]byte, 2+2*len(b))
+	hex.Encode(buf[2:], b)
+	if trunc && len(buf) > 2 && buf[2] == '0' {
+		buf = buf[1:]
+	}
+	copy(buf, "0x")
+	return buf
 }

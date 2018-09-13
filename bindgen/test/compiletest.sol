@@ -2,10 +2,8 @@ pragma experimental ABIEncoderV2;
 pragma solidity >= 0.4.23;
 
 contract Test {
-    uint32 public counter;
 
-    string public name;
-    
+    // structs
     Person[] public people;
 
     struct Person {
@@ -31,6 +29,11 @@ contract Test {
         return people;
     }
 
+    // event
+    event SomethingHappened(uint16 uint16Val, address addressVal, string stringVal, bytes bytesVal);
+    function sendTestEvent(uint16 uint16Val, string stringVal, bytes bytesVal) public {
+        emit SomethingHappened(uint16Val, msg.sender, stringVal, bytesVal);
+    }
 
     // bytes32
     bytes32 public bytes32Val;
@@ -46,20 +49,12 @@ contract Test {
         bytesVal = val;
     }
 
-    // string + event
-
-    event StringValSet(address indexed by, string val, string oldVal);
+    // string
 
     string public stringVal;
 
     function setStringVal(string val) public {
-        string storage oldVal = stringVal;
         stringVal = val;
-        emit StringValSet(msg.sender, stringVal, oldVal);
-    }
-
-    function value() public view returns(uint32 current_value) {
-        return counter;
     }
 
     function must_throw() public {
@@ -70,19 +65,4 @@ contract Test {
         return To_be_Doubled * 2;
     }
 
-    function inc() public {
-        counter = counter + 1;
-    }
-
-    function incBy(uint32 i) public {
-        counter = counter + i;
-    }
-
-    function SetName(string newName) public {
-        name = newName;
-    }
-
-    function getBig() public view returns (uint mr_big) {
-        return counter;
-    }
 }

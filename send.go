@@ -454,6 +454,7 @@ func DecodeABI(v []byte, args ...interface{}) error {
 	cur := v
 	offset := int64(0)
 	for i, v := range args {
+
 		if len(cur[offset:]) == 0 {
 			return fmt.Errorf("no argument returned at position %d", i)
 		}
@@ -470,9 +471,9 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			if len(*v) < 32 {
 				*v = make([]byte, 32)
 			}
-			copy(*v, cur)
+			copy(*v, buf)
 		case *Address:
-			copy(v[:], cur[12:])
+			copy(v[:], buf[12:])
 		case *Int:
 			(*big.Int)(v).SetBytes(buf)
 		case *big.Int:

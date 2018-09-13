@@ -50,9 +50,48 @@ import "github.com/newalchemylimited/seth"
 				return seth.DecodeABI(data{{range $i, $input := $d.Inputs}}, &e.{{ArgNameUpper $input.Name}}{{end}})
 			}
 
-			func (c *Test) Filter{{FuncName $d.Name}}Event(start, end int64) (*seth.Filter, error) {
+			func (c *Test) Filter{{FuncName $d.Name}}Event(start, end int64) (outChan chan *{{FuncName $d.Name}}Event, close func(), errChan chan error) {
+				errChan = make(chan error)
+
 				topic := seth.HashString("{{$d.Signature}}")
-				return c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
+				filter, err := c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
+				if err != nil {
+					go func() {
+						errChan <- err
+					}()
+					return
+				}
+
+				outChan = make(chan *{{FuncName $d.Name}}Event)
+				close = filter.Close
+
+				go func() {
+					defer filter.Close()
+					for {
+						if filter.Err() != nil {
+							errChan <- err
+							return
+						}
+						select {
+						case msg := <-filter.Out():
+							if msg == nil {
+								outChan <- nil
+								return
+							}
+
+							x := &{{FuncName $d.Name}}Event{
+								Log: msg,
+							}
+							if err := x.FromABI(msg.Data); err != nil {
+								errChan <- err
+								return
+							}
+							outChan <- x
+						}
+					}
+				}()
+
+				return
 			}
 		{{end}}
 
