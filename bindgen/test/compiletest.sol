@@ -6,8 +6,6 @@ contract Test {
 
     string public name;
     
-
-    
     Person[] public people;
 
     struct Person {
@@ -35,24 +33,29 @@ contract Test {
 
 
     // bytes32
-    bytes32 public bytes32val;
+    bytes32 public bytes32Val;
 
-    function setBytes32val(bytes32 val) public {
-        bytes32val = val;
+    function setBytes32Val(bytes32 val) public {
+        bytes32Val = val;
     }
 
     // bytes
-    bytes public bytesval;
+    bytes public bytesVal;
 
-    function setBytesval(bytes val) public {
-        bytesval = val;
+    function setBytesVal(bytes val) public {
+        bytesVal = val;
     }
 
-    // string
-    string public stringval;
+    // string + event
 
-    function setStringval(string val) public {
-        stringval = val;
+    event StringValSet(address indexed by, string val, string oldVal);
+
+    string public stringVal;
+
+    function setStringVal(string val) public {
+        string storage oldVal = stringVal;
+        stringVal = val;
+        emit StringValSet(msg.sender, stringVal, oldVal);
     }
 
     function value() public view returns(uint32 current_value) {

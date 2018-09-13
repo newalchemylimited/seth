@@ -1,1 +1,1 @@
-go install github.com/newalchemylimited/seth/bindgen && bindgen -b -c=Test -o test/generated.go -p main test/compiletest.sol
+go generate github.com/newalchemylimited/seth/bindgen && go install github.com/newalchemylimited/seth/bindgen && bindgen -b -c=Test -o test/generated.go -p main test/compiletest.sol

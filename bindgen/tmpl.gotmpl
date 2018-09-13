@@ -39,6 +39,23 @@ import "github.com/newalchemylimited/seth"
 
 		{{end}}
 
+		{{if eq $d.Type "event" }}
+
+			type {{FuncName $d.Name}}Event struct {
+				Log *seth.Log{{range $i, $input := $d.Inputs}}
+					{{ArgNameUpper $input.Name}} {{ArgType $input.Type}}{{end}}
+			}
+
+			func (e *{{FuncName $d.Name}}Event) FromABI(data []byte) error {
+				return seth.DecodeABI(data{{range $i, $input := $d.Inputs}}, &e.{{ArgNameUpper $input.Name}}{{end}})
+			}
+
+			func (c *Test) Filter{{FuncName $d.Name}}Event(start, end int64) (*seth.Filter, error) {
+				topic := seth.HashString("{{$d.Signature}}")
+				return c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
+			}
+		{{end}}
+
 	{{end}}
 	
 

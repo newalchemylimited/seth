@@ -107,11 +107,6 @@ func main() {
 	f.Close()
 }
 
-func argName(name string) string {
-	name = strcase.ToSnake(name)
-	return strcase.ToLowerCamel(name)
-}
-
 var funcMap = template.FuncMap{
 	"CodeVar": func(code []byte) string {
 		return fmt.Sprintf("%#v", code)
@@ -120,7 +115,15 @@ var funcMap = template.FuncMap{
 		name = strcase.ToSnake(name)
 		return strcase.ToCamel(name)
 	},
-	"ArgName": argName,
+	"ArgName": func(name string) string {
+		name = strcase.ToSnake(name)
+		return strcase.ToLowerCamel(name)
+	},
+
+	"ArgNameUpper": func(name string) string {
+		name = strcase.ToSnake(name)
+		return strcase.ToCamel(name)
+	},
 
 	"ArgType": func(a string) string {
 		if strings.HasPrefix(a, "bytes") {

@@ -33,6 +33,7 @@ func assert(cond bool) {
 }
 
 func main() {
+
 	// note: this program gets run from the parent directory
 	bundle, err := seth.CompileGlob("test/*.sol")
 	if err != nil {
@@ -73,22 +74,44 @@ func main() {
 	cc := NewTest(&addr, sender)
 
 	s := "hello"
-	b := []byte(s)
+	// b := []byte(s)
 
-	var b32 [32]byte
-	copy(b32[:], b[:])
+	// var b32 [32]byte
+	// copy(b32[:], b[:])
 
-	spew.Dump(cc.SetBytes32Val(b32))
+	// spew.Dump(cc.SetBytes32Val(b32))
 
-	spew.Dump(cc.Bytes32Val())
+	// spew.Dump(cc.Bytes32Val())
 
-	spew.Dump(cc.SetBytesval(b))
+	// spew.Dump(cc.SetBytesVal(b))
 
-	spew.Dump(cc.Bytesval())
+	// spew.Dump(cc.BytesVal())
 
-	spew.Dump(cc.SetStringval(s))
+	spew.Dump(cc.SetStringVal(s))
 
-	spew.Dump(cc.Stringval())
+	spew.Dump(cc.StringVal())
+	//time.Sleep(time.Second * 5)
+
+	filter, err := cc.FilterStringValSetEvent(-1, 0)
+
+	if err != nil {
+		panic(err)
+	}
+
+top:
+	for {
+		if filter.Err() != nil {
+			panic(err)
+		}
+		select {
+		case msg := <-filter.Out():
+			if msg == nil {
+				spew.Dump("no more messages")
+				break top
+			}
+			spew.Dump("message", msg)
+		}
+	}
 
 	//spew.Dump(cc.AddElliot())
 
