@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/newalchemylimited/seth"
@@ -101,21 +103,24 @@ func main() {
 	spew.Dump(cc.SendTestEvent(123, "test", []byte("hihi")))
 	spew.Dump(cc.SendTestEvent(321, "something else", []byte("goodbye")))
 
-	msgCh, _, errCh := cc.FilterSomethingHappenedEvent(0, -1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
-	for {
-		select {
-		case err := <-errCh:
-			panic(err)
-		case msg := <-msgCh:
-			if msg == nil {
-				break
-			}
-
-			spew.Dump("message", msg)
-
-		}
+	it, err := cc.FilterSomethingHappenedEvent(ctx, 0, -1)
+	if err != nil {
+		panic(err)
 	}
+
+	for it.Next() {
+		spew.Dump("Event:", it.Event)
+	}
+
+	if it.Error == context.DeadlineExceeded {
+		log.Printf("context timed out")
+	} else if it.Error != nil {
+		panic(it.Error)
+	}
+
+	cancel()
 
 	//spew.Dump(cc.AddElliot())
 

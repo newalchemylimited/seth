@@ -90,6 +90,7 @@ func main() {
 
 	formattedSource, err := format.Source(w.Bytes())
 	if err != nil {
+		fmt.Println("source: " + string(w.Bytes()))
 		fatal(err)
 	}
 

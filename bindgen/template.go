@@ -54,32 +54,56 @@ import "github.com/newalchemylimited/seth"
 				return seth.DecodeABI(data{{range $i, $input := $d.Inputs}}, &e.{{ArgNameUpper $input.Name}}{{end}})
 			}
 
-			func (c *Test) Filter{{FuncName $d.Name}}Event(start, end int64) (outChan chan *{{FuncName $d.Name}}Event, close func(), errChan chan error) {
-				errChan = make(chan error)
+			type {{FuncName $d.Name}}EventIterator struct {
+				Event *{{FuncName $d.Name}}Event
+				Error error
+				Close func()
+
+				errors chan error
+				events chan *{{FuncName $d.Name}}Event
+			}
+
+			func (i *{{FuncName $d.Name}}EventIterator) Next() bool {
+
+				select {
+					case i.Error = <-i.errors:
+						return false
+					case i.Event = <-i.events:
+						return i.Event != nil
+				}
+
+			}
+			//outChan chan *{{FuncName $d.Name}}Event, close func(), errChan chan error
+
+			func (c *{{$c.Name}}) Filter{{FuncName $d.Name}}Event(ctx context.Context, start, end int64) (*{{FuncName $d.Name}}EventIterator, error) {
+				
 
 				topic := seth.HashString("{{$d.Signature}}")
 				filter, err := c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
 				if err != nil {
-					go func() {
-						errChan <- err
-					}()
-					return
+					return nil, err
 				}
 
-				outChan = make(chan *{{FuncName $d.Name}}Event)
-				close = filter.Close
+				i := &{{FuncName $d.Name}}EventIterator{
+					errors: make(chan error, 1),
+					events: make(chan *{{FuncName $d.Name}}Event),
+					Close: filter.Close,
+				}
 
 				go func() {
 					defer filter.Close()
 					for {
 						if filter.Err() != nil {
-							errChan <- err
+							i.errors <- err
 							return
 						}
 						select {
+						case <-ctx.Done():
+							i.errors <- ctx.Err()
+							return
 						case msg := <-filter.Out():
 							if msg == nil {
-								outChan <- nil
+								i.events <- nil
 								return
 							}
 
@@ -87,15 +111,15 @@ import "github.com/newalchemylimited/seth"
 								Log: msg,
 							}
 							if err := x.FromABI(msg.Data); err != nil {
-								errChan <- err
+								i.errors <- err
 								return
 							}
-							outChan <- x
+							i.events <- x
 						}
 					}
 				}()
 
-				return
+				return i, nil
 			}
 		{{end}}
 
