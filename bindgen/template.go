@@ -43,27 +43,27 @@ import "github.com/newalchemylimited/seth"
 
 		{{end}}
 
-		{{if eq $d.Type "event" }}
-
-			type {{FuncName $d.Name}}Event struct {
+		{{if eq $d.Type "event"}}
+			
+			type {{$c.Name}}{{FuncName $d.Name}} struct {
 				Log *seth.Log{{range $i, $input := $d.Inputs}}
 					{{ArgNameUpper $input.Name}} {{ArgType $input.Type}}{{end}}
 			}
 
-			func (e *{{FuncName $d.Name}}Event) FromABI(data []byte) error {
+			func (e *{{$c.Name}}{{FuncName $d.Name}}) FromABI(data []byte) error {
 				return seth.DecodeABI(data{{range $i, $input := $d.Inputs}}, &e.{{ArgNameUpper $input.Name}}{{end}})
 			}
 
-			type {{FuncName $d.Name}}EventIterator struct {
-				Event *{{FuncName $d.Name}}Event
+			type {{$c.Name}}{{FuncName $d.Name}}Iterator struct {
+				Event *{{$c.Name}}{{FuncName $d.Name}}
 				Error error
 				Close func()
 
 				errors chan error
-				events chan *{{FuncName $d.Name}}Event
+				events chan *{{$c.Name}}{{FuncName $d.Name}}
 			}
 
-			func (i *{{FuncName $d.Name}}EventIterator) Next() bool {
+			func (i *{{$c.Name}}{{FuncName $d.Name}}Iterator) Next() bool {
 
 				select {
 					case i.Error = <-i.errors:
@@ -73,9 +73,8 @@ import "github.com/newalchemylimited/seth"
 				}
 
 			}
-			//outChan chan *{{FuncName $d.Name}}Event, close func(), errChan chan error
 
-			func (c *{{$c.Name}}) Filter{{FuncName $d.Name}}Event(ctx context.Context, start, end int64) (*{{FuncName $d.Name}}EventIterator, error) {
+			func (c *{{$c.Name}}) Filter{{FuncName $d.Name}}(ctx context.Context, start, end int64) (*{{$c.Name}}{{FuncName $d.Name}}Iterator, error) {
 				
 
 				topic := seth.HashString("{{$d.Signature}}")
@@ -84,9 +83,9 @@ import "github.com/newalchemylimited/seth"
 					return nil, err
 				}
 
-				i := &{{FuncName $d.Name}}EventIterator{
+				i := &{{$c.Name}}{{FuncName $d.Name}}Iterator{
 					errors: make(chan error, 1),
-					events: make(chan *{{FuncName $d.Name}}Event),
+					events: make(chan *{{$c.Name}}{{FuncName $d.Name}}),
 					Close: filter.Close,
 				}
 
@@ -107,7 +106,7 @@ import "github.com/newalchemylimited/seth"
 								return
 							}
 
-							x := &{{FuncName $d.Name}}Event{
+							x := &{{$c.Name}}{{FuncName $d.Name}}{
 								Log: msg,
 							}
 							if err := x.FromABI(msg.Data); err != nil {
@@ -124,7 +123,6 @@ import "github.com/newalchemylimited/seth"
 		{{end}}
 
 	{{end}}
-	
 
 {{end}}
 
