@@ -2,6 +2,15 @@ pragma experimental ABIEncoderV2;
 pragma solidity >= 0.4.23;
 
 contract Test {
+   // addr, err := sender.Create(TestCode, nil, "(uint16,string)", uint16(123), "hi how are you")
+
+    uint16 public cuint16;
+    string public cstring;
+
+    constructor(uint16 cuint16val, string cstringval) public {
+        cuint16 = cuint16val;
+        cstring = cstringval;
+    }
 
     // structs
     Person[] public people;
@@ -9,9 +18,6 @@ contract Test {
     struct Person {
         string name;
         uint8 age;
-    }
-
-    constructor() public {
     }
     
     function addElliot() public {

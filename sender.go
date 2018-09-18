@@ -72,7 +72,14 @@ func (s *Sender) ConstCall(to *Address, method string, out interface{}, args ...
 // Create creates a new contract with the given contract code.
 // This call blocks until the transaction posts, and then returns
 // the contract's address.
-func (s *Sender) Create(code []byte, value *Int) (Address, error) {
+func (s *Sender) Create(code []byte, value *Int, constructor string, args ...interface{}) (Address, error) {
+
+	if constructor != "" && constructor != "()" {
+		ethargs := outgoingArgConvert(constructor, args)
+		argsAbi := ABIEncode(true, constructor, ethargs...)
+		code = append(code, argsAbi...)
+	}
+
 	opts := CallOpts{From: s.Addr, GasPrice: &s.GasPrice, Value: value}
 	opts.Data = Data(code)
 	gas, err := s.EstimateGas(&opts, s.Pending)

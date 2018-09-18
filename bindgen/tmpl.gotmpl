@@ -16,6 +16,17 @@ import "github.com/newalchemylimited/seth"
 	}
 
 	{{range $d := $c.ABI}}
+
+		{{if eq $d.Type "constructor" }}
+			func Deploy{{$c.Name}}(sender *seth.Sender, value *big.Int, {{range $i, $input := $d.Inputs}}{{if gt $i 0}}, {{end}}{{ArgName $input.Name}} {{ArgType $input.Type}}{{end}}) (*{{$c.Name}}, seth.Address, error) {
+				if value == nil {
+					value = big.NewInt(0)
+				}
+				v := seth.Int(*value)
+				addr, err := sender.Create({{$c.Name}}Code, &v, "{{$d.Signature}}"{{range $i, $input := $d.Inputs}}, {{ArgName $input.Name}}{{end}})
+				return New{{$c.Name}}(&addr, sender), addr, err
+			}
+		{{end}}
 		
 		{{if eq $d.Type "function" }}
 

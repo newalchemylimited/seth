@@ -249,6 +249,9 @@ func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
 		case Bytes:
 			// Pass it through...
 			converted = &v
+		case Address:
+			// Pass it through...
+			converted = &v
 		case string:
 			if argType == "address" {
 				var err error
@@ -308,7 +311,7 @@ func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
 }
 
 // ABIEncode encodes a function and its arguments
-func ABIEncode(fn string, args ...EtherType) []byte {
+func ABIEncode(constructor bool, fn string, args ...EtherType) []byte {
 	typecheck(fn, args)
 
 	buf := make([]byte, 4, 4+len(args)*32)
@@ -326,7 +329,13 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 		}
 		buf = a.EncodeABI(buf)
 	}
-	return append(buf, dyn...)
+
+	if constructor {
+		return append(buf, dyn...)[4:] // Without the function hash
+	} else {
+		return append(buf, dyn...)
+	}
+
 }
 
 // EncodeCall sets up c.Data so that it reflects
@@ -340,7 +349,7 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 // or if they weren't an *Address and *Int, respectively.
 func (c *CallOpts) EncodeCall(fn string, args ...interface{}) {
 	ethargs := outgoingArgConvert(fn, args)
-	c.Data = Data(ABIEncode(fn, ethargs...))
+	c.Data = Data(ABIEncode(false, fn, ethargs...))
 }
 
 // Call makes a transaction call using the given CallOpts.

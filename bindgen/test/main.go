@@ -67,7 +67,8 @@ func main() {
 	//addr, _ := seth.ParseAddress("0xc42286d90be0bc5ebe8c141de13d0451e62ca897")
 
 	//*
-	addr, err := sender.Create(TestCode, nil)
+	cc, addr, err := DeployTest(sender, nil, uint16(123), "hi how are you")
+	//addr, err := sender.Create(TestCode, nil, "(uint16,string)", uint16(123), "hi how are you")
 	//addr, err := c.Create(&acct, TestCode)
 	if err != nil {
 		fatal("deploying the contract:", err)
@@ -78,7 +79,7 @@ func main() {
 	//sender := c.Sender(&acct)
 	//sender.Pending = true
 
-	cc := NewTest(&addr, sender)
+	//cc := NewTest(&addr, sender)
 
 	//s := "hello"
 	// b := []byte(s)
@@ -100,12 +101,16 @@ func main() {
 	//spew.Dump(cc.StringVal())
 	//time.Sleep(time.Second * 5)
 
+	spew.Dump("constructor")
+	spew.Dump(cc.Cstring())
+	spew.Dump(cc.Cuint16())
+
 	spew.Dump(cc.SendTestEvent(123, "test", []byte("hihi")))
 	spew.Dump(cc.SendTestEvent(321, "something else", []byte("goodbye")))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
-	it, err := cc.FilterSomethingHappenedEvent(ctx, 0, -1)
+	it, err := cc.FilterSomethingHappened(ctx, 0, -1)
 	if err != nil {
 		panic(err)
 	}

@@ -182,8 +182,13 @@ func Generate(buf io.Writer, packageName string, bundle *seth.CompiledBundle) er
 
 	for iContract := range bundle.Contracts {
 		contract := &bundle.Contracts[iContract]
+		var hasConstructor bool
 		for iDescriptor := range contract.ABI {
 			descriptor := &contract.ABI[iDescriptor]
+
+			if descriptor.Type == "constructor" {
+				hasConstructor = true
+			}
 
 			if descriptor.Type != "function" {
 				continue
@@ -203,6 +208,12 @@ func Generate(buf io.Writer, packageName string, bundle *seth.CompiledBundle) er
 				}
 			}
 
+		}
+
+		if !hasConstructor {
+			bundle.Contracts[iContract].ABI = append(bundle.Contracts[iContract].ABI, seth.ABIDescriptor{
+				Type: "constructor",
+			})
 		}
 
 	}
