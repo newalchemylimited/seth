@@ -56,7 +56,7 @@ func main() {
 	fundingAddress, err := seth.ParseAddress("0x84ede7C61cBFf3056D6dEb24FF774b79c1d2c4E4") // ganache
 	//fundingAddress, err := seth.ParseAddress("0x5231a93db3ce6cbb709af94a267dd0e747d30f82") // parity
 
-	sender := seth.NewSender(c, fundingAddress)
+	sender := seth.NewSender(c, fundingAddress, seth.DefaultSenderOptions)
 	contract := bundle.Contract("Test")
 	ccode := contract.Code
 
@@ -67,14 +67,14 @@ func main() {
 	//addr, _ := seth.ParseAddress("0xc42286d90be0bc5ebe8c141de13d0451e62ca897")
 
 	//*
-	cc, addr, err := DeployTest(sender, nil, uint16(123), "hi how are you")
+	cc, receipt, err := DeployTest(sender, nil, uint16(123), "hi how are you")
 	//addr, err := sender.Create(TestCode, nil, "(uint16,string)", uint16(123), "hi how are you")
 	//addr, err := c.Create(&acct, TestCode)
 	if err != nil {
 		fatal("deploying the contract:", err)
 	} //*/
 
-	log.Printf("Installed contract to: %s", addr.String())
+	log.Printf("Installed contract to: %s", receipt.Address.String())
 
 	//sender := c.Sender(&acct)
 	//sender.Pending = true

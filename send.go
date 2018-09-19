@@ -242,16 +242,10 @@ func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
 		var converted EtherType
 
 		panicArg := func() {
-			panic(fmt.Sprintf("arg %d incorrect. could not convert type %s to expected type %s", i, reflect.TypeOf(v).Name(), argTypes[i]))
+			panic(fmt.Sprintf("arg %d incorrect. could not convert type %s to expected type %s (val: %v)", i, reflect.TypeOf(v).Name(), argTypes[i], v))
 		}
 
 		switch v := v.(type) {
-		case Bytes:
-			// Pass it through...
-			converted = &v
-		case Address:
-			// Pass it through...
-			converted = &v
 		case string:
 			if argType == "address" {
 				var err error
@@ -262,6 +256,15 @@ func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
 				converted = NewString(v)
 			} else {
 				panicArg()
+			}
+		case bool:
+			if argType != "bool" {
+				panicArg()
+			}
+			if v {
+				converted = NewInt(1)
+			} else {
+				converted = NewInt(0)
 			}
 		case int8, int16, int32, int64, uint8, uint16, uint32, uint64:
 			if reflect.TypeOf(v).Name() != argTypes[i] {
@@ -295,6 +298,24 @@ func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
 				copy(d[:], v[:])
 				converted = NewData(d)
 			}
+		case *big.Int:
+			if !strings.HasPrefix(argType, "uint") && !strings.HasPrefix(argType, "int") {
+				panicArg()
+			}
+			x := Int(*v)
+			converted = &x
+		case *Bytes:
+			// Pass it through...
+			converted = v
+		case Bytes:
+			// Pass it through...
+			converted = &v
+		case *Address:
+			// Pass it through...
+			converted = v
+		case Address:
+			// Pass it through...
+			converted = &v
 
 		}
 

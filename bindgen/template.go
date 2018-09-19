@@ -12,23 +12,26 @@ import "github.com/newalchemylimited/seth"
 
 	type {{$c.Name}} struct {
 		addr  *seth.Address
-		s     *seth.Sender
+		s     seth.Sender
 	}
 
-	func New{{$c.Name}}(addr *seth.Address, sender *seth.Sender) *{{$c.Name}} {
+	func New{{$c.Name}}(addr *seth.Address, sender seth.Sender) *{{$c.Name}} {
 		return &{{$c.Name}}{addr: addr, s: sender}
 	}
 
 	{{range $d := $c.ABI}}
 
 		{{if eq $d.Type "constructor" }}
-			func Deploy{{$c.Name}}(sender *seth.Sender, value *big.Int, {{range $i, $input := $d.Inputs}}{{if gt $i 0}}, {{end}}{{ArgName $input.Name}} {{ArgType $input.Type}}{{end}}) (*{{$c.Name}}, seth.Address, error) {
+			func Deploy{{$c.Name}}(sender seth.Sender, value *big.Int, {{range $i, $input := $d.Inputs}}{{if gt $i 0}}, {{end}}{{ArgName $input.Name}} {{ArgType $input.Type}}{{end}}) (*{{$c.Name}}, *seth.Receipt, error) {
 				if value == nil {
 					value = big.NewInt(0)
 				}
 				v := seth.Int(*value)
-				addr, err := sender.Create({{$c.Name}}Code, &v, "{{$d.Signature}}"{{range $i, $input := $d.Inputs}}, {{ArgName $input.Name}}{{end}})
-				return New{{$c.Name}}(&addr, sender), addr, err
+				receipt, err := sender.Create({{$c.Name}}Code, &v, "{{$d.Signature}}"{{range $i, $input := $d.Inputs}}, {{ArgName $input.Name}}{{end}})
+				if err != nil {
+					return nil, nil, err
+				}
+				return New{{$c.Name}}(receipt.Address, sender), receipt, nil
 			}
 		{{end}}
 		
@@ -58,11 +61,27 @@ import "github.com/newalchemylimited/seth"
 			
 			type {{$c.Name}}{{FuncName $d.Name}} struct {
 				Log *seth.Log{{range $i, $input := $d.Inputs}}
-					{{ArgNameUpper $input.Name}} {{ArgType $input.Type}}{{end}}
+					{{ArgNameUpper $input.Name}} {{RetType $input.Type}}{{end}}
 			}
 
-			func (e *{{$c.Name}}{{FuncName $d.Name}}) FromABI(data []byte) error {
-				return seth.DecodeABI(data{{range $i, $input := $d.Inputs}}, &e.{{ArgNameUpper $input.Name}}{{end}})
+
+			var {{$c.Name}}{{FuncName $d.Name}}Topic = seth.HashString("{{$d.Signature}}")
+
+
+			func (e *{{$c.Name}}{{FuncName $d.Name}}) FromLog(log *seth.Log) error {
+				if log.Topics[0].String() != {{$c.Name}}{{FuncName $d.Name}}Topic.String() {
+					return fmt.Errorf("failed to decode {{$c.Name}}{{FuncName $d.Name}}. incorrect topic expected: %s actual: %s", {{$c.Name}}{{FuncName $d.Name}}Topic.String(), log.Topics[0].String())
+				}
+
+				{{range $i, $input := $d.Inputs}}
+					{{if $input.Indexed}}
+						if err := seth.DecodeABI(log.Topics[{{ inc $i }}], &e.{{ArgNameUpper $input.Name}}); err != nil {
+							return fmt.Errorf("failed to decode {{$c.Name}}{{FuncName $d.Name}} event property {{ArgNameUpper $input.Name}}: %s", err)
+						}
+					{{end}}
+				{{end}}
+
+				return seth.DecodeABI(log.Data{{range $i, $input := $d.Inputs}}{{if not $input.Indexed}}, &e.{{ArgNameUpper $input.Name}}{{end}}{{end}})
 			}
 
 			type {{$c.Name}}{{FuncName $d.Name}}Iterator struct {
@@ -87,9 +106,7 @@ import "github.com/newalchemylimited/seth"
 
 			func (c *{{$c.Name}}) Filter{{FuncName $d.Name}}(ctx context.Context, start, end int64) (*{{$c.Name}}{{FuncName $d.Name}}Iterator, error) {
 				
-
-				topic := seth.HashString("{{$d.Signature}}")
-				filter, err := c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
+				filter, err := c.s.FilterTopics([]*seth.Hash{&{{$c.Name}}{{FuncName $d.Name}}Topic}, c.addr, start, end)
 				if err != nil {
 					return nil, err
 				}
@@ -120,7 +137,7 @@ import "github.com/newalchemylimited/seth"
 							x := &{{$c.Name}}{{FuncName $d.Name}}{
 								Log: msg,
 							}
-							if err := x.FromABI(msg.Data); err != nil {
+							if err := x.FromLog(msg); err != nil {
 								i.errors <- err
 								return
 							}

@@ -125,7 +125,9 @@ var funcMap = template.FuncMap{
 		name = strcase.ToSnake(name)
 		return strcase.ToCamel(name)
 	},
-
+	"inc": func(i int) int {
+		return i + 1
+	},
 	"ArgType": func(a string) string {
 		if strings.HasPrefix(a, "bytes") {
 			return fmt.Sprintf("[%s]byte", strings.TrimPrefix(a, "bytes"))
@@ -138,7 +140,7 @@ var funcMap = template.FuncMap{
 		case "int", "uint", "uint128", "uint256":
 			return "*big.Int"
 		case "address":
-			return "seth.Address"
+			return "*seth.Address"
 		case "address[]":
 			return "*seth.AddrSlice"
 		case "uint256[]":

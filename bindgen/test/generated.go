@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/newalchemylimited/seth"
@@ -11,10 +12,10 @@ import (
 
 type Test struct {
 	addr *seth.Address
-	s    *seth.Sender
+	s    seth.Sender
 }
 
-func NewTest(addr *seth.Address, sender *seth.Sender) *Test {
+func NewTest(addr *seth.Address, sender seth.Sender) *Test {
 	return &Test{addr: addr, s: sender}
 }
 
@@ -109,13 +110,16 @@ func (c *Test) AddElliot() (res seth.Hash, err error) {
 	return c.s.Send(c.addr, "addElliot()")
 }
 
-func DeployTest(sender *seth.Sender, value *big.Int, cuint16Val uint16, cstringval string) (*Test, seth.Address, error) {
+func DeployTest(sender seth.Sender, value *big.Int, cuint16Val uint16, cstringval string) (*Test, *seth.Receipt, error) {
 	if value == nil {
 		value = big.NewInt(0)
 	}
 	v := seth.Int(*value)
-	addr, err := sender.Create(TestCode, &v, "(uint16,string)", cuint16Val, cstringval)
-	return NewTest(&addr, sender), addr, err
+	receipt, err := sender.Create(TestCode, &v, "(uint16,string)", cuint16Val, cstringval)
+	if err != nil {
+		return nil, nil, err
+	}
+	return NewTest(receipt.Address, sender), receipt, nil
 }
 
 type TestSomethingHappened struct {
@@ -126,8 +130,14 @@ type TestSomethingHappened struct {
 	BytesVal   []byte
 }
 
-func (e *TestSomethingHappened) FromABI(data []byte) error {
-	return seth.DecodeABI(data, &e.Uint16Val, &e.AddressVal, &e.StringVal, &e.BytesVal)
+var TestSomethingHappenedTopic = seth.HashString("SomethingHappened(uint16,address,string,bytes)")
+
+func (e *TestSomethingHappened) FromLog(log *seth.Log) error {
+	if log.Topics[0].String() != TestSomethingHappenedTopic.String() {
+		return fmt.Errorf("failed to decode TestSomethingHappened. incorrect topic expected: %s actual: %s", TestSomethingHappenedTopic.String(), log.Topics[0].String())
+	}
+
+	return seth.DecodeABI(log.Data, &e.Uint16Val, &e.AddressVal, &e.StringVal, &e.BytesVal)
 }
 
 type TestSomethingHappenedIterator struct {
@@ -152,8 +162,7 @@ func (i *TestSomethingHappenedIterator) Next() bool {
 
 func (c *Test) FilterSomethingHappened(ctx context.Context, start, end int64) (*TestSomethingHappenedIterator, error) {
 
-	topic := seth.HashString("SomethingHappened(uint16,address,string,bytes)")
-	filter, err := c.s.FilterTopics([]*seth.Hash{&topic}, c.addr, start, end)
+	filter, err := c.s.FilterTopics([]*seth.Hash{&TestSomethingHappenedTopic}, c.addr, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +193,7 @@ func (c *Test) FilterSomethingHappened(ctx context.Context, start, end int64) (*
 				x := &TestSomethingHappened{
 					Log: msg,
 				}
-				if err := x.FromABI(msg.Data); err != nil {
+				if err := x.FromLog(msg); err != nil {
 					i.errors <- err
 					return
 				}
