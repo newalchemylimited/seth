@@ -67,6 +67,11 @@ func NewClientTransport(tp Transport) *Client {
 // Data is just binary that can decode Ethereum's silly quoted hex
 type Data []byte
 
+func NewData(s []byte) *Data {
+	b := Data(s)
+	return &b
+}
+
 func (d *Data) String() string {
 	if d == nil {
 		return "<nil>"
@@ -85,6 +90,16 @@ func (d *Data) UnmarshalText(b []byte) error {
 	}
 	*d = s
 	return nil
+}
+
+func NewString(s string) *Bytes {
+	b := Bytes(s)
+	return &b
+}
+
+func NewBytes(s []byte) *Bytes {
+	b := Bytes(s)
+	return &b
 }
 
 // Bytes is like Data, but can be be greater than 32 bytes in length

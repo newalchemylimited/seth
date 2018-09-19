@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -210,8 +212,127 @@ func typecheck(f string, args []EtherType) {
 	}
 }
 
+// converts the incoming go types into the corresponding seth types
+// given in the function signature 'f'
+func outgoingArgConvert(f string, args []interface{}) (out []EtherType) {
+	if strings.ContainsAny(f, illegal) {
+		panic("illegal characters in function signature string")
+	}
+	lparen := strings.IndexByte(f, '(')
+	if lparen == -1 {
+		panic(f + " has no left paren")
+	}
+	rparen := strings.IndexByte(f, ')')
+	if rparen != len(f)-1 {
+		panic(f + " has a bad right paren")
+	}
+
+	argTypes := strings.Split(f[lparen+1:rparen], ",")
+	if len(argTypes) == 1 && argTypes[0] == "" {
+		argTypes = []string{}
+	}
+
+	if len(argTypes) != len(args) {
+		panic(fmt.Sprintf("mismatched argument lists: %d args vs %d given", len(argTypes), len(args)))
+	}
+
+	for i, v := range args {
+
+		var argType = argTypes[i]
+		var converted EtherType
+
+		panicArg := func() {
+			panic(fmt.Sprintf("arg %d incorrect. could not convert type %s to expected type %s (val: %v)", i, reflect.TypeOf(v).Name(), argTypes[i], v))
+		}
+
+		switch v := v.(type) {
+		case string:
+			if argType == "address" {
+				var err error
+				if converted, err = ParseAddress(v); err != nil {
+					panic(fmt.Sprintf("arg %d could not be parsed as address: %s", i, err))
+				}
+			} else if argType == "string" {
+				converted = NewString(v)
+			} else {
+				panicArg()
+			}
+		case bool:
+			if argType != "bool" {
+				panicArg()
+			}
+			if v {
+				converted = NewInt(1)
+			} else {
+				converted = NewInt(0)
+			}
+		case int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+			if reflect.TypeOf(v).Name() != argTypes[i] {
+				panicArg()
+			}
+			n := new(Int)
+			_ = n.FromString(fmt.Sprintf("%d", v))
+			converted = n
+		case [32]byte:
+			if argType != "bytes32" {
+				panicArg()
+			}
+
+			converted = NewData(v[:])
+		case []byte:
+			if !strings.HasPrefix(argType, "bytes") {
+				panicArg()
+			}
+			if argType == "bytes" {
+				converted = NewBytes(v)
+			} else {
+				argLen, err := strconv.ParseInt(strings.TrimPrefix(argType, "bytes"), 10, 8)
+				if err != nil {
+					panic(fmt.Sprintf("arg %d failed to parse length from  bytes type %s: %s", i, argType, err))
+
+				}
+				if int64(len(v)) > argLen {
+					panic(fmt.Sprintf("arg %d failed to parse length from  bytes type %s: %s", i, argType, err))
+				}
+				var d = make([]byte, argLen)
+				copy(d[:], v[:])
+				converted = NewData(d)
+			}
+		case *big.Int:
+			if !strings.HasPrefix(argType, "uint") && !strings.HasPrefix(argType, "int") {
+				panicArg()
+			}
+			x := Int(*v)
+			converted = &x
+		case *Bytes:
+			// Pass it through...
+			converted = v
+		case Bytes:
+			// Pass it through...
+			converted = &v
+		case *Address:
+			// Pass it through...
+			converted = v
+		case Address:
+			// Pass it through...
+			converted = &v
+
+		}
+
+		// TODO: Do the rest
+
+		if converted == nil {
+			panicArg()
+		}
+
+		out = append(out, converted)
+	}
+
+	return
+}
+
 // ABIEncode encodes a function and its arguments
-func ABIEncode(fn string, args ...EtherType) []byte {
+func ABIEncode(constructor bool, fn string, args ...EtherType) []byte {
 	typecheck(fn, args)
 
 	buf := make([]byte, 4, 4+len(args)*32)
@@ -229,7 +350,13 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 		}
 		buf = a.EncodeABI(buf)
 	}
-	return append(buf, dyn...)
+
+	if constructor {
+		return append(buf, dyn...)[4:] // Without the function hash
+	} else {
+		return append(buf, dyn...)
+	}
+
 }
 
 // EncodeCall sets up c.Data so that it reflects
@@ -241,8 +368,9 @@ func ABIEncode(fn string, args ...EtherType) []byte {
 // for a function signature of "transfer(address,uint256)",
 // EncodeCall would panic if two arguments weren't provided,
 // or if they weren't an *Address and *Int, respectively.
-func (c *CallOpts) EncodeCall(fn string, args ...EtherType) {
-	c.Data = Data(ABIEncode(fn, args...))
+func (c *CallOpts) EncodeCall(fn string, args ...interface{}) {
+	ethargs := outgoingArgConvert(fn, args)
+	c.Data = Data(ABIEncode(false, fn, ethargs...))
 }
 
 // Call makes a transaction call using the given CallOpts.
@@ -260,9 +388,17 @@ func (c *Client) RawCall(raw []byte) (tx Hash, err error) {
 }
 
 // EstimateGas estimates the gas cost of mining this call into the blockchain.
-func (c *Client) EstimateGas(opts *CallOpts) (gas Int, err error) {
+func (c *Client) EstimateGas(opts *CallOpts, pending bool) (gas Int, err error) {
+	// x := NewInt(128336)
+	// return *x, nil
 	buf, _ := json.Marshal(opts)
-	err = c.Do("eth_estimateGas", []json.RawMessage{buf, rawpending}, &gas)
+
+	bs := rawlatest
+	if pending {
+		bs = rawpending
+	}
+
+	err = c.Do("eth_estimateGas", []json.RawMessage{buf, bs}, &gas)
 	return
 }
 
@@ -342,10 +478,13 @@ func (d *ABIDecoder) UnmarshalText(v []byte) error {
 //  - bytes -> []byte or seth.Bytes
 //
 func DecodeABI(v []byte, args ...interface{}) error {
+
+	//spew.Dump("DECODE ABI", v, "INTO", args)
 	var spare big.Int
 	cur := v
 	offset := int64(0)
 	for i, v := range args {
+
 		if len(cur[offset:]) == 0 {
 			return fmt.Errorf("no argument returned at position %d", i)
 		}
@@ -362,13 +501,17 @@ func DecodeABI(v []byte, args ...interface{}) error {
 			if len(*v) < 32 {
 				*v = make([]byte, 32)
 			}
-			copy(*v, cur)
+			copy(*v, buf)
 		case *Address:
-			copy(v[:], cur[12:])
+			copy(v[:], buf[12:])
 		case *Int:
 			(*big.Int)(v).SetBytes(buf)
 		case *big.Int:
 			v.SetBytes(buf)
+		case *[32]byte:
+			var x [32]byte
+			copy(x[:], buf)
+			*v = x
 		default:
 			did = false
 		}

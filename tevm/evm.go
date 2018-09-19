@@ -776,7 +776,7 @@ func (c *Chain) CreateAt(addr, sender *seth.Address, code []byte) error {
 	contract.CodeHash = crypto.Keccak256Hash(code)
 	contract.CodeAddr = (*common.Address)(addr)
 
-	ret, err := evm.Interpreter().Run(contract, nil)
+	ret, err := evm.Interpreter().Run(contract, nil, false)
 	if err != nil {
 		c.mu.Unlock()
 		return err
